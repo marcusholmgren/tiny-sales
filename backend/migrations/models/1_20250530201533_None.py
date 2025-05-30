@@ -27,21 +27,25 @@ CREATE TABLE IF NOT EXISTS "orders" (
 CREATE INDEX IF NOT EXISTS "idx_orders_public__32168a" ON "orders" ("public_id");
 CREATE TABLE IF NOT EXISTS "order_events" (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    "public_id" VARCHAR(27) NOT NULL UNIQUE,
     "event_type" VARCHAR(100) NOT NULL,
     "data" JSON,
     "occurred_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "order_id" INT NOT NULL REFERENCES "orders" ("id") ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS "idx_order_event_public__bc5421" ON "order_events" ("public_id");
 CREATE TABLE IF NOT EXISTS "order_items" (
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    "public_id" VARCHAR(27) NOT NULL UNIQUE,
     "quantity" INT NOT NULL,
     "price_at_purchase" REAL NOT NULL,
     "item_id" INT NOT NULL REFERENCES "inventory_items" ("id") ON DELETE RESTRICT,
     "order_id" INT NOT NULL REFERENCES "orders" ("id") ON DELETE CASCADE,
     CONSTRAINT "uid_order_items_order_i_c57a29" UNIQUE ("order_id", "item_id")
 );
+CREATE INDEX IF NOT EXISTS "idx_order_items_public__8b0420" ON "order_items" ("public_id");
 CREATE TABLE IF NOT EXISTS "aerich" (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     "version" VARCHAR(255) NOT NULL,
