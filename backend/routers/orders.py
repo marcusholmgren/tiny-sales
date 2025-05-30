@@ -1,16 +1,32 @@
+import logging
 from fastapi import APIRouter, HTTPException, Depends
 from tortoise.transactions import in_transaction
 from tortoise.exceptions import DoesNotExist # Add this import
 from typing import List
 
-from backend.models import Order, OrderItem, OrderEvent, InventoryItem
-from backend.schemas import OrderCreateSchema, OrderPublicSchema, OrderItemCreateSchema
-from backend.models import generate_ksuid # Assuming generate_ksuid is in backend.models
+from backend.models import Order, OrderItem, OrderEvent, InventoryItem, generate_ksuid
+from backend.schemas import OrderCreateSchema, OrderPublicSchema, OrderItemCreateSchema, OrderItemPublicSchema, OrderEventPublicSchema
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/orders",
     tags=["Orders"],
 )
+
+async def to_full_order(order: Order) -> OrderPublicSchema:
+    return OrderPublicSchema(
+        contact_name=order.contact_name,
+        contact_email=order.contact_email,
+        delivery_address=order.delivery_address,
+        public_id=order.public_id,
+        order_id=order.order_id,
+        status=order.status,
+        items=[OrderItemPublicSchema(product_public_id=f"{(await i.item.first()).public_id}", quantity=i.quantity, public_id=i.public_id, price_at_purchase=i.price_at_purchase) for i in order.items],
+        events=[OrderEventPublicSchema(public_id=e.public_id, event_type=e.event_type, data=e.data, occurred_at=e.occurred_at) for e in order.events],
+        created_at=order.created_at,
+        updated_at=order.updated_at,
+    )
 
 @router.post("/", response_model=OrderPublicSchema, status_code=201)
 async def create_order(order_data: OrderCreateSchema):
@@ -19,10 +35,9 @@ async def create_order(order_data: OrderCreateSchema):
     async with in_transaction() as conn:
         new_order_id_str = await Order.generate_next_order_id()
 
-        order_public_id = generate_ksuid()
         # Ensure all fields from OrderBase are passed, matching Order model
         order = await Order.create(
-            public_id=order_public_id,
+            public_id=generate_ksuid(),
             order_id=new_order_id_str, # This is internal_order_id
             contact_name=order_data.contact_name,
             contact_email=order_data.contact_email,
@@ -48,14 +63,14 @@ async def create_order(order_data: OrderCreateSchema):
 
             order_items_to_create.append(
                 OrderItem(
-                    public_id=generate_ksuid(), # KSUID for OrderItem
+                    public_id=generate_ksuid(),
                     order=order,
                     item_id=inventory_item.id, # FK to InventoryItem's primary key
                     quantity=item_data.quantity,
                     price_at_purchase=item_data.price_at_purchase # From updated OrderItemCreateSchema
                 )
             )
-
+        logger.info(f"Order: {order_items_to_create[0]}")
         if not order_items_to_create:
              # This check is technically redundant if OrderCreateSchema.items has min_length=1
              raise HTTPException(status_code=400, detail="Order must contain at least one item.")
@@ -64,7 +79,7 @@ async def create_order(order_data: OrderCreateSchema):
 
         # Create initial order event
         await OrderEvent.create(
-            public_id=generate_ksuid(), # KSUID for OrderEvent
+            public_id=generate_ksuid(),
             order=order,
             event_type="order_placed",
             data={"message": "Order created successfully."}, # Example data
@@ -78,7 +93,7 @@ async def create_order(order_data: OrderCreateSchema):
             # This case should ideally not be reached if creation was successful
             raise HTTPException(status_code=500, detail="Failed to retrieve created order details.")
 
-        return full_order
+        return await to_full_order(full_order)
 
 
 @router.get("/{order_public_id}", response_model=OrderPublicSchema)
@@ -98,6 +113,6 @@ async def get_order(order_public_id: str):
         # The OrderPublicSchema expects related fields to be populated.
         # Tortoise ORM's .prefetch_related() and Pydantic's from_orm (from_attributes=True)
         # should handle the conversion correctly.
-        return order
+        return await to_full_order(order)
     except DoesNotExist:
         raise HTTPException(status_code=404, detail=f"Order with public_id {order_public_id} not found.")

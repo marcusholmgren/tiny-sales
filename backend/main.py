@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -19,6 +20,22 @@ from backend.routers import orders as orders_router
 # For production, consider a more robust logging setup (e.g., structured logging, log rotation)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+fmt = logging.Formatter(
+    fmt="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+sh = logging.StreamHandler(sys.stdout)
+sh.setLevel(logging.DEBUG)
+sh.setFormatter(fmt)
+# will print debug sql
+logger_db_client = logging.getLogger("tortoise.db_client")
+logger_db_client.setLevel(logging.DEBUG)
+logger_db_client.addHandler(sh)
+
+logger_tortoise = logging.getLogger("tortoise")
+logger_tortoise.setLevel(logging.DEBUG)
+logger_tortoise.addHandler(sh)
 
 # TORTOISE_ORM_CONFIG
 # Ensure the 'models' path is correct for your setup.
