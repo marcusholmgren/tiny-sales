@@ -15,10 +15,6 @@ Start development API
 uv run fastapi dev
 ```
 
-Create database migration
-```bash
-uv run aerich init-db
-
 ## Technology
 
 - FastAPI

@@ -1,10 +1,10 @@
 import datetime
 from tortoise import fields, models
-from tortoise.contrib.pydantic import pydantic_model_creator
+# from tortoise.contrib.pydantic import pydantic_model_creator
 from ksuid import KsuidMs
 
 def generate_ksuid():
-    return KsuidMs()
+    return str(KsuidMs())
 
 class TimestampMixin(models.Model):
     created_at = fields.DatetimeField(auto_now_add=True)
@@ -20,7 +20,7 @@ class InventoryItem(TimestampMixin):
     quantity = fields.IntField(default=0)
     deleted_at = fields.DatetimeField(null=True, default=None) # For soft delete
 
-    orders: fields.ReverseRelation["OrderItem"] # M2M through OrderItem
+    order_items_relation: fields.ReverseRelation["OrderItem"]
 
     def __str__(self):
         return f"{self.name} (Stock: {self.quantity})"
@@ -67,13 +67,17 @@ class OrderItem(TimestampMixin):
         "models.Order", related_name="items", on_delete=fields.CASCADE
     )
     item: fields.ForeignKeyRelation[InventoryItem] = fields.ForeignKeyField(
-        "models.InventoryItem", related_name="order_items", on_delete=fields.RESTRICT # Prevent deleting inventory item if part of an order
+        "models.InventoryItem", related_name="order_items_relation", on_delete=fields.RESTRICT # Prevent deleting inventory item if part of an order
     )
     quantity = fields.IntField()
     price_at_purchase = fields.FloatField() # Price of the item at the time of purchase
 
     def __str__(self):
-        return f"{self.quantity} x {self.item.name} for Order {self.order.order_id}"
+        # Ensure item is loaded before accessing its name
+        # This might require an await if item is not prefetched
+        item_name = self.item.name if hasattr(self.item, 'name') and self.item.name else 'N/A'
+        order_id_val = self.order.order_id if hasattr(self.order, 'order_id') and self.order.order_id else 'N/A'
+        return f"{self.quantity} x {item_name} for Order {order_id_val}"
 
     class Meta:
         table = "order_items"
@@ -97,22 +101,13 @@ class OrderEvent(models.Model): # No TimestampMixin, occurred_at is specific
         ordering = ["occurred_at"]
 
 
-# Pydantic models for API validation and response
-# These will be generated after Tortoise is initialized usually,
-# but we can define them here for clarity or use them in main.py
+# Pydantic model creators are useful for quick generation,
+# but custom schemas are defined in schemas.py for more control.
+# If needed, you can uncomment and use these, but prefer schemas.py for API contracts.
 
-InventoryItem_Pydantic = pydantic_model_creator(InventoryItem, name="InventoryItem")
-InventoryItemIn_Pydantic = pydantic_model_creator(InventoryItem, name="InventoryItemIn", exclude_readonly=True, exclude=("public_id", "deleted_at"))
+# InventoryItem_Pydantic = pydantic_model_creator(InventoryItem, name="InventoryItemPydantic")
+# InventoryItemIn_Pydantic = pydantic_model_creator(InventoryItem, name="InventoryItemInPydantic", exclude_readonly=True, exclude=("public_id", "deleted_at"))
 
-Order_Pydantic = pydantic_model_creator(Order, name="Order")
-# For creating an order, we'll likely have a more complex input model
-# OrderIn_Pydantic = pydantic_model_creator(Order, name="OrderIn", exclude_readonly=True, exclude=("public_id", "order_id", "status"))
-
-OrderItem_Pydantic = pydantic_model_creator(OrderItem, name="OrderItem")
-# OrderItemIn_Pydantic = pydantic_model_creator(OrderItem, name="OrderItemIn", exclude_readonly=True)
-
-
-OrderEvent_Pydantic = pydantic_model_creator(OrderEvent, name="OrderEvent")
-
-# More specific Pydantic models for request bodies and responses will be defined in the FastAPI app (main.py or routers)
-# For example, a request to create an order would look different.
+# Order_Pydantic = pydantic_model_creator(Order, name="OrderPydantic")
+# OrderItem_Pydantic = pydantic_model_creator(OrderItem, name="OrderItemPydantic")
+# OrderEvent_Pydantic = pydantic_model_creator(OrderEvent, name="OrderEventPydantic")
