@@ -15,7 +15,7 @@ TORTOISE_ORM_CONFIG = {
         "models": { # This is an app label, can be anything
             "models": [
                 "models", # Path to your models module
-                # "aerich.models"   # For Aerich migrations (good practice)
+                "aerich.models"   # For Aerich migrations (good practice)
             ],
             "default_connection": "default",
         }

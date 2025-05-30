@@ -10,4 +10,10 @@ dependencies = [
     "svix-ksuid>=0.6.2",
     "aiosqlite>=0.20.0",
     "uvicorn[standard]>=0.30.1",
+    "aerich[toml]>=0.8.0",
 ]
+
+[tool.aerich]
+tortoise_orm = "main.TORTOISE_ORM_CONFIG"
+location = "./migrations"
+src_folder = "./."
