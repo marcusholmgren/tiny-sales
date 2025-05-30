@@ -1,0 +1,13 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.12",
+    "tortoise-orm>=0.21.3",
+    "svix-ksuid>=0.6.2",
+    "aiosqlite>=0.20.0",
+    "uvicorn[standard]>=0.30.1",
+]
