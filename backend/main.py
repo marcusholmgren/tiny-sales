@@ -1,54 +1,109 @@
+import os
+import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from tortoise.contrib.fastapi import register_tortoise
-import uvicorn
+from tortoise import generate_config
+from tortoise.contrib.fastapi import register_tortoise, tortoise_exception_handlers
 
-# This assumes that when the application runs, 'backend' is a package
-# available in the Python path, or that the application is run from
-# the directory containing 'backend'.
+
+# Assuming your routers and models are structured to be imported like this.
+# This might require tiny-sales/backend to be in PYTHONPATH or specific run configurations.
+# If 'routers' is a sub-package of 'backend', relative import is safer:
+# from .routers import inventory
+from .routers import inventory
+
+
+# Configure basic logging
+# For production, consider a more robust logging setup (e.g., structured logging, log rotation)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# TORTOISE_ORM_CONFIG
+# Ensure the 'models' path is correct for your setup.
+# If running uvicorn from 'tiny-sales/backend/', "models" might work.
+# If running from 'tiny-sales/', and 'backend' is a package, "backend.models" is safer.
+# Aerich configuration in pyproject.toml or aerich.ini should align with this.
 TORTOISE_ORM_CONFIG = {
     "connections": {
-        # The database file will be created in the directory where the app is run.
-        # If running from `backend/`, it will be `backend/tiny_sales.sqlite3`
-        "default": "sqlite://./tiny_sales.sqlite3"
+        "default": "sqlite://./tiny_sales.sqlite3" # DB will be in the CWD of the app process
     },
     "apps": {
         "models": { # This is an app label, can be anything
             "models": [
-                "models", # Path to your models module
-                # "aerich.models"   # For Aerich migrations (good practice)
+                "backend.models", # Assuming 'tiny-sales' is in PYTHONPATH and 'backend' is a package.
+                                  # Adjust if your execution context or Aerich config differs.
+                "aerich.models"   # For Aerich migrations
             ],
             "default_connection": "default",
         }
     },
-    # Optional: Add timezone if your application is timezone-aware
-    # "timezone": "UTC",
+    # "timezone": "UTC", # Optional: if you want Tortoise to handle timezones
 }
 
 app = FastAPI(
     title="Tiny Sales API",
     description="API for managing orders and inventory.",
     version="0.1.0",
+    exception_handlers=tortoise_exception_handlers(),
 )
+
+@asynccontextmanager
+async def lifespan_test(app: FastAPI) -> AsyncGenerator[None, None]:
+    config = generate_config(
+        os.getenv("TORTOISE_TEST_DB", "sqlite://:memory:"),
+        app_modules={"models": ["models"]},
+        testing=True,
+        connection_label="models",
+    )
+    async with register_tortoise(
+        app=app,
+        config=config,
+        generate_schemas=True,
+        _create_db=True,
+    ):
+        # db connected
+        yield
+        # app teardown
+    # db connections closed
+    # await Tortoise._drop_databases()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    if getattr(app.state, "testing", None):
+        async with lifespan_test(app) as _:
+            yield
+    else:
+        # app startup
+        # async with register_orm(app):
+            # db connected
+        yield
+            # app teardown
+        # db connections closed
 
 @app.get("/")
 async def read_root():
     """
     Root endpoint for the API.
     """
+    logger.info(f"Root endpoint '/' accessed by {app.client.host if app.client else 'unknown client'}")
     return {"message": "Welcome to the Tiny Sales API!"}
 
+# Include your routers
+app.include_router(inventory.router, prefix="/api/v1") # Example: Prefixing all inventory routes with /api/v1
+# Add other routers here, e.g.:
+# from .routers import orders
+# app.include_router(orders.router, prefix="/api/v1")
+
+
 # Register Tortoise ORM with the FastAPI application
-# This will initialize Tortoise, set up database connections,
-# and create tables based on the models if they don't exist.
+# This will initialize Tortoise, set up database connections.
+# generate_schemas=True is useful for initial dev, but for production,
+# rely on Aerich migrations. Set to False once initial schema is stable and managed by Aerich.
 register_tortoise(
     app,
     config=TORTOISE_ORM_CONFIG,
-    generate_schemas=True,  # Automatically create database tables based on models
-    add_exception_handlers=True,  # Add Tortoise ORM exception handlers
+    generate_schemas=True,  # Consider setting to False if Aerich handles all schema changes
+    add_exception_handlers=True,  # Adds Tortoise ORM specific exception handlers
 )
-
-if __name__ == "__main__":
-    # This allows running the app directly with `python backend/main.py`
-    # The app will be served by uvicorn.
-    # reload=True is useful for development.
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
