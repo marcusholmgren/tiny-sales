@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, EmailStr
+from typing import List, Optional, Any
 import datetime
 
 # Base schema for common inventory item attributes
@@ -37,6 +37,60 @@ class PaginatedInventoryResponse(BaseModel):
     page: int
     size: int
     # pages: int # Can be calculated as ceil(total / size)
+
+    class Config:
+        from_attributes = True
+
+
+# --- Order Schemas ---
+
+class OrderItemBase(BaseModel):
+    product_public_id: str = Field(..., description="Public KSUID of the product (InventoryItem)")
+    quantity: int = Field(..., gt=0, description="Quantity of the product")
+
+class OrderItemCreateSchema(OrderItemBase):
+    price_at_purchase: float = Field(..., gt=0, description="Price of the product at the time of purchase")
+
+class OrderItemPublicSchema(OrderItemBase):
+    public_id: str = Field(..., description="Public KSUID of this order item")
+    price_at_purchase: float = Field(..., description="Price of the product at the time of purchase")
+
+    class Config:
+        from_attributes = True
+
+class OrderEventPublicSchema(BaseModel):
+    public_id: str = Field(..., description="Public KSUID of the event")
+    event_type: str = Field(..., description="Type of the order event (e.g., order_placed, order_shipped)")
+    data: Optional[dict[str, Any]] = Field(None, description="Additional data associated with the event")
+    occurred_at: datetime.datetime = Field(..., description="Timestamp of when the event occurred")
+
+    class Config:
+        from_attributes = True
+
+class OrderBase(BaseModel):
+    contact_name: str = Field(..., max_length=255, description="Name of the contact person for the order")
+    contact_email: EmailStr = Field(..., description="Email address of the contact person")
+    delivery_address: str = Field(..., description="Full delivery address")
+    # Add more detailed address fields if they were adopted in models.py:
+    # buyer_phone: Optional[str] = Field(None, max_length=50)
+    # delivery_address_line1: str
+    # delivery_address_line2: Optional[str] = None
+    # delivery_city: str
+    # delivery_state_province: str
+    # delivery_postal_code: str
+    # delivery_country: str
+
+class OrderCreateSchema(OrderBase):
+    items: List[OrderItemCreateSchema] = Field(..., min_length=1, description="List of items in the order. Must not be empty.")
+
+class OrderPublicSchema(OrderBase):
+    public_id: str = Field(..., description="Public KSUID of the order")
+    order_id: str = Field(..., description="User-facing order ID (e.g., 20250001)")
+    status: str = Field(..., description="Current status of the order")
+    items: List[OrderItemPublicSchema] = Field(..., description="List of items in the order")
+    events: List[OrderEventPublicSchema] = Field(..., description="Chronological list of events for this order")
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
 
     class Config:
         from_attributes = True

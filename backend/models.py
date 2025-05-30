@@ -63,6 +63,7 @@ class Order(TimestampMixin):
 
 class OrderItem(TimestampMixin):
     id = fields.IntField(pk=True)
+    public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, index=True)
     order: fields.ForeignKeyRelation[Order] = fields.ForeignKeyField(
         "models.Order", related_name="items", on_delete=fields.CASCADE
     )
@@ -86,6 +87,7 @@ class OrderItem(TimestampMixin):
 
 class OrderEvent(models.Model): # No TimestampMixin, occurred_at is specific
     id = fields.IntField(pk=True)
+    public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, index=True)
     order: fields.ForeignKeyRelation[Order] = fields.ForeignKeyField(
         "models.Order", related_name="events", on_delete=fields.CASCADE
     )
