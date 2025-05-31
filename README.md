@@ -1,6 +1,8 @@
 # Tiny sales
 
-This project is a simple litle sales and inventory API system.
+This project is a simple little sales and inventory API system.
+It has inventory management for products.
+And order management for receiving and processing orders.
 
 
 ## Run

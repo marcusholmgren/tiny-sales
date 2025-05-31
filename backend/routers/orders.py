@@ -94,6 +94,8 @@ async def create_order(order_data: OrderCreateSchema):
             using_db=conn
         )
 
+        await conn.commit()
+
         # Fetch the complete order object with related items and events for the response
         # This ensures the response matches OrderPublicSchema
         full_order = await Order.get_or_none(id=order.id, using_db=conn).prefetch_related("items", "events")
@@ -175,7 +177,8 @@ async def cancel_order(order_public_id: str, cancel_data: Optional[OrderCancelRe
     if order.status == "shipped" and not (cancel_data and cancel_data.reason and "customer requested" in cancel_data.reason.lower()): # Example condition, adjust as needed
         # More complex cancellation rules might be needed depending on whether a shipped order can be cancelled.
         # For now, let's assume a shipped order cannot be easily cancelled unless for specific reasons.
-        pass # Allow cancellation even if shipped, if a reason is provided. Business logic might differ.
+        # Allow cancellation even if shipped, if a reason is provided. Business logic might differ.
+        raise HTTPException(status_code=400, detail="Cannot cancel a shipped order without a valid reason.")
 
 
     async with in_transaction() as conn:
