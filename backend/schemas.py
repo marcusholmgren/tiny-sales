@@ -42,6 +42,16 @@ class PaginatedInventoryResponse(BaseModel):
         from_attributes = True
 
 
+# --- Schemas for Order Updates (PATCH requests) ---
+
+class OrderShipRequestSchema(BaseModel):
+    tracking_number: Optional[str] = Field(None, description="Tracking number for the shipment")
+    shipping_provider: Optional[str] = Field(None, description="Shipping provider for the shipment")
+
+class OrderCancelRequestSchema(BaseModel):
+    reason: Optional[str] = Field(None, description="Reason for cancelling the order")
+
+
 # --- Order Schemas ---
 
 class OrderItemBase(BaseModel):
