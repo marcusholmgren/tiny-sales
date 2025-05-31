@@ -14,8 +14,8 @@ class TimestampMixin(models.Model):
         abstract = True
 
 class InventoryItem(TimestampMixin):
-    id = fields.IntField(pk=True)
-    public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, index=True)
+    id = fields.IntField(primary_key=True)
+    public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, db_index=True)
     name = fields.CharField(max_length=255)
     quantity = fields.IntField(default=0)
     deleted_at = fields.DatetimeField(null=True, default=None) # For soft delete
@@ -29,9 +29,9 @@ class InventoryItem(TimestampMixin):
         table = "inventory_items"
 
 class Order(TimestampMixin):
-    id = fields.IntField(pk=True) # Internal auto-incrementing ID
+    id = fields.IntField(primary_key=True) # Internal auto-incrementing ID
     order_id = fields.CharField(max_length=50, unique=True, description="Pattern: <year+0000> e.g. 20250001") # User-facing order ID
-    public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, index=True)
+    public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, db_index=True)
 
     # Contact and Delivery Information
     contact_name = fields.CharField(max_length=255)
@@ -62,8 +62,8 @@ class Order(TimestampMixin):
 
 
 class OrderItem(TimestampMixin):
-    id = fields.IntField(pk=True)
-    public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, index=True)
+    id = fields.IntField(primary_key=True)
+    public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, db_index=True)
     order: fields.ForeignKeyRelation[Order] = fields.ForeignKeyField(
         "models.Order", related_name="items", on_delete=fields.CASCADE
     )
@@ -86,8 +86,8 @@ class OrderItem(TimestampMixin):
 
 
 class OrderEvent(models.Model): # No TimestampMixin, occurred_at is specific
-    id = fields.IntField(pk=True)
-    public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, index=True)
+    id = fields.IntField(primary_key=True)
+    public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, db_index=True)
     order: fields.ForeignKeyRelation[Order] = fields.ForeignKeyField(
         "models.Order", related_name="events", on_delete=fields.CASCADE
     )

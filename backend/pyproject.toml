@@ -18,6 +18,5 @@ tortoise_orm = "backend.main.TORTOISE_ORM_CONFIG"
 location = "./migrations"
 src_folder = "../"
 
-[tool.uv.dev-dependencies]
-pytest = "*"
-pytest-asyncio = "*"
+[dependency-groups]
+dev = ["pytest>=8.3.5", "pytest-asyncio>=1.0.0"]

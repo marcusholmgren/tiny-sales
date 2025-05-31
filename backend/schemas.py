@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from typing import List, Optional, Any
 import datetime
 
@@ -27,8 +27,10 @@ class InventoryItemResponse(InventoryItemBase):
     updated_at: datetime.datetime = Field(..., description="Timestamp of when the item was last updated")
     # deleted_at: Optional[datetime.datetime] = Field(None, description="Timestamp of when the item was soft-deleted, if applicable")
 
-    class Config:
-        from_attributes = True # Pydantic V2 way to enable ORM mode
+    model_config = ConfigDict(
+        from_attributes=True,  # Pydantic V2 way to enable ORM mode
+        protected_namespaces=(),  # Allow all attributes to be accessed
+    )
 
 # Schema for a paginated list of inventory items
 class PaginatedInventoryResponse(BaseModel):
@@ -38,8 +40,10 @@ class PaginatedInventoryResponse(BaseModel):
     size: int
     # pages: int # Can be calculated as ceil(total / size)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,  # Pydantic V2 way to enable ORM mode
+        protected_namespaces=(),  # Allow all attributes to be accessed
+    )
 
 
 # --- Schemas for Order Updates (PATCH requests) ---
@@ -65,8 +69,10 @@ class OrderItemPublicSchema(OrderItemBase):
     public_id: str = Field(..., description="Public KSUID of this order item")
     price_at_purchase: float = Field(..., description="Price of the product at the time of purchase")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,  # Pydantic V2 way to enable ORM mode
+        protected_namespaces=(),  # Allow all attributes to be accessed
+    )
 
 class OrderEventPublicSchema(BaseModel):
     public_id: str = Field(..., description="Public KSUID of the event")
@@ -74,8 +80,10 @@ class OrderEventPublicSchema(BaseModel):
     data: Optional[dict[str, Any]] = Field(None, description="Additional data associated with the event")
     occurred_at: datetime.datetime = Field(..., description="Timestamp of when the event occurred")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,  # Pydantic V2 way to enable ORM mode
+        protected_namespaces=(),  # Allow all attributes to be accessed
+    )
 
 class OrderBase(BaseModel):
     contact_name: str = Field(..., max_length=255, description="Name of the contact person for the order")
@@ -102,5 +110,7 @@ class OrderPublicSchema(OrderBase):
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,  # Pydantic V2 way to enable ORM mode
+        protected_namespaces=(),  # Allow all attributes to be accessed
+    )
