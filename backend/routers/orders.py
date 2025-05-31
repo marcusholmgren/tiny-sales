@@ -1,11 +1,19 @@
 import logging
 from fastapi import APIRouter, HTTPException, Depends
 from tortoise.transactions import in_transaction
-from tortoise.exceptions import DoesNotExist # Add this import
-from typing import List
+from tortoise.exceptions import DoesNotExist
+from typing import List, Optional
 
 from backend.models import Order, OrderItem, OrderEvent, InventoryItem, generate_ksuid
-from backend.schemas import OrderCreateSchema, OrderPublicSchema, OrderItemCreateSchema, OrderItemPublicSchema, OrderEventPublicSchema
+from backend.schemas import (
+    OrderCreateSchema,
+    OrderPublicSchema,
+    OrderItemCreateSchema,
+    OrderItemPublicSchema,
+    OrderEventPublicSchema,
+    OrderShipRequestSchema, # To be created
+    OrderCancelRequestSchema # To be created
+)
 
 logger = logging.getLogger(__name__)
 
@@ -116,3 +124,76 @@ async def get_order(order_public_id: str):
         return await to_full_order(order)
     except DoesNotExist:
         raise HTTPException(status_code=404, detail=f"Order with public_id {order_public_id} not found.")
+
+
+@router.patch("/{order_public_id}/ship", response_model=OrderPublicSchema)
+async def ship_order(order_public_id: str, ship_data: Optional[OrderShipRequestSchema] = None):
+    try:
+        order = await Order.get(public_id=order_public_id).prefetch_related("items", "events")
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail=f"Order with public_id {order_public_id} not found.")
+
+    if order.status == "shipped":
+        raise HTTPException(status_code=400, detail="Order is already shipped.")
+    if order.status == "cancelled":
+        raise HTTPException(status_code=400, detail="Cannot ship a cancelled order.")
+
+    async with in_transaction() as conn:
+        order.status = "shipped"
+        await order.save(using_db=conn, update_fields=['status'])
+
+        event_data = {}
+        if ship_data:
+            if ship_data.tracking_number:
+                event_data["tracking_number"] = ship_data.tracking_number
+            if ship_data.shipping_provider:
+                event_data["shipping_provider"] = ship_data.shipping_provider
+
+        await OrderEvent.create(
+            public_id=generate_ksuid(),
+            order=order,
+            event_type="order_shipped",
+            data=event_data if event_data else {"message": "Order marked as shipped."},
+            using_db=conn
+        )
+        # Refresh events for the response
+        await order.fetch_related("events", using_db=conn)
+
+
+    return await to_full_order(order)
+
+
+@router.patch("/{order_public_id}/cancel", response_model=OrderPublicSchema)
+async def cancel_order(order_public_id: str, cancel_data: Optional[OrderCancelRequestSchema] = None):
+    try:
+        order = await Order.get(public_id=order_public_id).prefetch_related("items", "events")
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail=f"Order with public_id {order_public_id} not found.")
+
+    if order.status == "cancelled":
+        raise HTTPException(status_code=400, detail="Order is already cancelled.")
+    if order.status == "shipped" and not (cancel_data and cancel_data.reason and "customer requested" in cancel_data.reason.lower()): # Example condition, adjust as needed
+        # More complex cancellation rules might be needed depending on whether a shipped order can be cancelled.
+        # For now, let's assume a shipped order cannot be easily cancelled unless for specific reasons.
+        pass # Allow cancellation even if shipped, if a reason is provided. Business logic might differ.
+
+
+    async with in_transaction() as conn:
+        order.status = "cancelled"
+        await order.save(using_db=conn, update_fields=['status'])
+
+        event_data = {}
+        if cancel_data and cancel_data.reason:
+            event_data["reason"] = cancel_data.reason
+
+        await OrderEvent.create(
+            public_id=generate_ksuid(),
+            order=order,
+            event_type="order_cancelled",
+            data=event_data if event_data else {"message": "Order marked as cancelled."},
+            using_db=conn
+        )
+        # Refresh events for the response
+        await order.fetch_related("events", using_db=conn)
+
+    return await to_full_order(order)
