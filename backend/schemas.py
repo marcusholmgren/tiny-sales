@@ -12,17 +12,42 @@ class InventoryItemBase(BaseModel):
 # created_at, updated_at are set by the server
 # deleted_at is not set on creation
 class InventoryItemCreate(InventoryItemBase):
-    pass
+    category_id: Optional[str] = Field(None, description="Public ID of the category to assign to the item")
 
 # Schema for updating an existing inventory item
 # All fields are optional for partial updates
 class InventoryItemUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255, description="New name of the inventory item")
     quantity: Optional[int] = Field(None, ge=0, description="New stock quantity of the item")
+    category_id: Optional[str] = Field(None, description="Public ID of the new category to assign to the item")
+
+# --- Category Schemas ---
+
+class CategoryBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100, description="Name of the category")
+    description: Optional[str] = Field(None, max_length=500, description="Optional description for the category")
+
+class CategoryCreate(CategoryBase):
+    pass
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="New name of the category")
+    description: Optional[str] = Field(None, max_length=500, description="New description for the category")
+
+class CategoryResponse(CategoryBase):
+    public_id: str = Field(..., description="Public unique identifier for the category (KSUID)")
+    created_at: datetime.datetime = Field(..., description="Timestamp of when the category was created")
+    updated_at: datetime.datetime = Field(..., description="Timestamp of when the category was last updated")
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        protected_namespaces=(),
+    )
 
 # Schema for representing an inventory item in API responses
 class InventoryItemResponse(InventoryItemBase):
     public_id: str = Field(..., description="Public unique identifier for the item (KSUID)")
+    category: Optional[CategoryResponse] = Field(None, description="Category of the inventory item") # No longer a forward reference
     created_at: datetime.datetime = Field(..., description="Timestamp of when the item was created")
     updated_at: datetime.datetime = Field(..., description="Timestamp of when the item was last updated")
     # deleted_at: Optional[datetime.datetime] = Field(None, description="Timestamp of when the item was soft-deleted, if applicable")
@@ -31,6 +56,8 @@ class InventoryItemResponse(InventoryItemBase):
         from_attributes=True,  # Pydantic V2 way to enable ORM mode
         protected_namespaces=(),  # Allow all attributes to be accessed
     )
+
+InventoryItemResponse.model_rebuild() # Needed for forward reference resolution
 
 # Schema for a paginated list of inventory items
 class PaginatedInventoryResponse(BaseModel):
@@ -44,6 +71,37 @@ class PaginatedInventoryResponse(BaseModel):
         from_attributes=True,  # Pydantic V2 way to enable ORM mode
         protected_namespaces=(),  # Allow all attributes to be accessed
     )
+
+# --- User Schemas ---
+
+class UserBase(BaseModel):
+    username: str = Field(..., min_length=3, max_length=100, description="Username")
+    email: EmailStr = Field(..., description="User email address")
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=8, description="User password")
+
+class UserResponse(UserBase):
+    public_id: str = Field(..., description="Public unique identifier for the user (KSUID)")
+    role: str = Field(..., description="User role (e.g., customer, admin)")
+    is_active: bool = Field(..., description="Whether the user account is active")
+    created_at: datetime.datetime = Field(..., description="Timestamp of when the user was created")
+    updated_at: datetime.datetime = Field(..., description="Timestamp of when the user was last updated")
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        protected_namespaces=(),
+    )
+
+# --- Auth Schemas ---
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    sub: Optional[str] = None
+    #scopes: List[str] = [] # If using scopes for permissions
 
 
 # --- Schemas for Order Updates (PATCH requests) ---
@@ -104,6 +162,7 @@ class OrderCreateSchema(OrderBase):
 class OrderPublicSchema(OrderBase):
     public_id: str = Field(..., description="Public KSUID of the order")
     order_id: str = Field(..., description="User-facing order ID (e.g., 20250001)")
+    user: Optional[UserResponse] = Field(None, description="User associated with the order")
     status: str = Field(..., description="Current status of the order")
     items: List[OrderItemPublicSchema] = Field(..., description="List of items in the order")
     events: List[OrderEventPublicSchema] = Field(..., description="Chronological list of events for this order")
@@ -114,3 +173,5 @@ class OrderPublicSchema(OrderBase):
         from_attributes=True,  # Pydantic V2 way to enable ORM mode
         protected_namespaces=(),  # Allow all attributes to be accessed
     )
+
+OrderPublicSchema.model_rebuild() # In case UserResponse needs forward ref resolution if it were defined later

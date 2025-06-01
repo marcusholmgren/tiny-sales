@@ -1,10 +1,10 @@
 import datetime
 from tortoise import fields, models
 # from tortoise.contrib.pydantic import pydantic_model_creator
-from ksuid import KsuidMs
+from ksuid import ksuid # Changed from pyksuid.KsuidMS to ksuid.ksuid
 
 def generate_ksuid():
-    return str(KsuidMs())
+    return str(ksuid.Ksuid())
 
 class TimestampMixin(models.Model):
     created_at = fields.DatetimeField(auto_now_add=True)
@@ -21,12 +21,29 @@ class InventoryItem(TimestampMixin):
     deleted_at = fields.DatetimeField(null=True, default=None) # For soft delete
 
     order_items_relation: fields.ReverseRelation["OrderItem"]
+    category: fields.ForeignKeyRelation["Category"] = fields.ForeignKeyField(
+        "models.Category", related_name="inventory_items", on_delete=fields.SET_NULL, null=True
+    )
 
     def __str__(self):
         return f"{self.name} (Stock: {self.quantity})"
 
     class Meta:
         table = "inventory_items"
+
+class Category(TimestampMixin):
+    id = fields.IntField(primary_key=True)
+    public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, db_index=True)
+    name = fields.CharField(max_length=100, unique=True)
+    description = fields.TextField(null=True)
+
+    inventory_items: fields.ReverseRelation["InventoryItem"]
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        table = "categories"
 
 class Order(TimestampMixin):
     id = fields.IntField(primary_key=True) # Internal auto-incrementing ID
@@ -39,6 +56,9 @@ class Order(TimestampMixin):
     delivery_address = fields.TextField()
 
     status = fields.CharField(max_length=50, default="pending_payment") # Current status of the order
+    user: fields.ForeignKeyRelation["User"] = fields.ForeignKeyField(
+        "models.User", related_name="orders", on_delete=fields.SET_NULL, null=True
+    )
 
     items: fields.ReverseRelation["OrderItem"]
     events: fields.ReverseRelation["OrderEvent"]
@@ -113,3 +133,21 @@ class OrderEvent(models.Model): # No TimestampMixin, occurred_at is specific
 # Order_Pydantic = pydantic_model_creator(Order, name="OrderPydantic")
 # OrderItem_Pydantic = pydantic_model_creator(OrderItem, name="OrderItemPydantic")
 # OrderEvent_Pydantic = pydantic_model_creator(OrderEvent, name="OrderEventPydantic")
+
+
+class User(TimestampMixin):
+    id = fields.IntField(primary_key=True)
+    public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, db_index=True)
+    username = fields.CharField(max_length=100, unique=True, db_index=True)
+    email = fields.CharField(max_length=255, unique=True, db_index=True)
+    hashed_password = fields.CharField(max_length=255)
+    role = fields.CharField(max_length=50, default="customer")  # E.g., "customer", "admin"
+    is_active = fields.BooleanField(default=True)
+
+    orders: fields.ReverseRelation["Order"]
+
+    def __str__(self):
+        return f"{self.username} ({self.role})"
+
+    class Meta:
+        table = "users"
