@@ -100,7 +100,7 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    username: Optional[str] = None
+    sub: Optional[str] = None
     #scopes: List[str] = [] # If using scopes for permissions
 
 

@@ -1,4 +1,5 @@
 import os
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Annotated
 
@@ -10,6 +11,7 @@ import bcrypt
 
 from . import models, schemas  # Assuming models and schemas are in the same directory or accessible
 
+logger = logging.getLogger(__name__)
 # Configuration
 # In a real app, load from environment variables or a config file
 SECRET_KEY = os.getenv("SECRET_KEY",
@@ -18,8 +20,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
 # OAuth2 Scheme
-# tokenUrl should point to your token endpoint, e.g., "/auth/token"
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -63,15 +64,15 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> mod
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: Optional[str] = payload.get("sub")
-        if username is None:
+        sub: Optional[str] = payload.get("sub")
+        if sub is None:
             raise credentials_exception
-        token_data = schemas.TokenData(username=username)
-    except (JWTError, ValidationError) as e:  # Catch JWT errors and Pydantic validation errors
-        # logger.error(f"Token decode/validation error: {e}") # Consider logging the error
+        token_data = schemas.TokenData(sub=sub)
+    except (JWTError, ValidationError) as e:
+        logger.error("Invalid token or payload. %s", e)
         raise credentials_exception
 
-    user = await get_user(username=token_data.username)
+    user = await get_user(username=token_data.sub)
     if user is None:
         raise credentials_exception
     if not user.is_active:
