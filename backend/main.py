@@ -14,6 +14,7 @@ from tortoise.contrib.fastapi import register_tortoise, tortoise_exception_handl
 # from .routers import inventory
 from .routers import inventory
 from backend.routers import orders as orders_router
+from backend.routers import auth as auth_router # Import the new auth router
 
 
 # Configure basic logging
@@ -111,6 +112,7 @@ async def read_root():
 # Include your routers
 app.include_router(inventory.router, prefix="/api/v1") # Example: Prefixing all inventory routes with /api/v1
 app.include_router(orders_router.router, prefix="/api/v1")
+app.include_router(auth_router.router, prefix="/api/v1") # Add the auth router
 # Add other routers here, e.g.:
 # from .routers import orders
 # app.include_router(orders.router, prefix="/api/v1")
