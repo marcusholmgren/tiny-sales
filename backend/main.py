@@ -19,24 +19,25 @@ from backend.routers import auth as auth_router # Import the new auth router
 
 # Configure basic logging
 # For production, consider a more robust logging setup (e.g., structured logging, log rotation)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
 fmt = logging.Formatter(
     fmt="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-sh = logging.StreamHandler(sys.stdout)
-sh.setLevel(logging.DEBUG)
-sh.setFormatter(fmt)
-# will print debug sql
-logger_db_client = logging.getLogger("tortoise.db_client")
-logger_db_client.setLevel(logging.DEBUG)
-logger_db_client.addHandler(sh)
+logging.basicConfig(level=logging.INFO, format=fmt._style._fmt)  # Use the formatter's format string directly
+logger = logging.getLogger(__name__)
 
-logger_tortoise = logging.getLogger("tortoise")
-logger_tortoise.setLevel(logging.DEBUG)
-logger_tortoise.addHandler(sh)
+
+# sh = logging.StreamHandler(sys.stdout)
+# sh.setLevel(logging.DEBUG)
+# sh.setFormatter(fmt)
+# # will print debug sql
+# logger_db_client = logging.getLogger("tortoise.db_client")
+# logger_db_client.setLevel(logging.DEBUG)
+# # logger_db_client.addHandler(sh)
+#
+# logger_tortoise = logging.getLogger("tortoise")
+# logger_tortoise.setLevel(logging.DEBUG)
+# # logger_tortoise.addHandler(sh)
 
 # TORTOISE_ORM_CONFIG
 # Ensure the 'models' path is correct for your setup.
@@ -110,12 +111,10 @@ async def read_root():
     return {"message": "Welcome to the Tiny Sales API!"}
 
 # Include your routers
-app.include_router(inventory.router, prefix="/api/v1") # Example: Prefixing all inventory routes with /api/v1
+app.include_router(inventory.router, prefix="/api/v1")
 app.include_router(orders_router.router, prefix="/api/v1")
 app.include_router(auth_router.router, prefix="/api/v1") # Add the auth router
-# Add other routers here, e.g.:
-# from .routers import orders
-# app.include_router(orders.router, prefix="/api/v1")
+
 
 
 # Register Tortoise ORM with the FastAPI application
@@ -125,6 +124,6 @@ app.include_router(auth_router.router, prefix="/api/v1") # Add the auth router
 register_tortoise(
     app,
     config=TORTOISE_ORM_CONFIG,
-    generate_schemas=True,  # Consider setting to False if Aerich handles all schema changes
+    generate_schemas=False,  # Consider setting to False if Aerich handles all schema changes
     add_exception_handlers=True,  # Adds Tortoise ORM specific exception handlers
 )

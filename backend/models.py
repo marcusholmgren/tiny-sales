@@ -4,7 +4,7 @@ from tortoise import fields, models
 from ksuid import ksuid # Changed from pyksuid.KsuidMS to ksuid.ksuid
 
 def generate_ksuid():
-    return str(ksuid()) # Changed KsuidMS() to ksuid()
+    return str(ksuid.Ksuid())
 
 class TimestampMixin(models.Model):
     created_at = fields.DatetimeField(auto_now_add=True)
@@ -138,8 +138,8 @@ class OrderEvent(models.Model): # No TimestampMixin, occurred_at is specific
 class User(TimestampMixin):
     id = fields.IntField(primary_key=True)
     public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, db_index=True)
-    username = fields.CharField(max_length=100, unique=True, index=True)
-    email = fields.CharField(max_length=255, unique=True, index=True)
+    username = fields.CharField(max_length=100, unique=True, db_index=True)
+    email = fields.CharField(max_length=255, unique=True, db_index=True)
     hashed_password = fields.CharField(max_length=255)
     role = fields.CharField(max_length=50, default="customer")  # E.g., "customer", "admin"
     is_active = fields.BooleanField(default=True)
