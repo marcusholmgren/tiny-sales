@@ -247,5 +247,3 @@ async def get_inventory_value_report(
         items_contributing=value_items_breakdown,
         item_count=len(inventory_items)
     )
-
-```

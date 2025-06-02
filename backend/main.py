@@ -11,10 +11,11 @@ from tortoise.contrib.fastapi import register_tortoise, tortoise_exception_handl
 # Assuming your routers and models are structured to be imported like this.
 # This might require tiny-sales/backend to be in PYTHONPATH or specific run configurations.
 # If 'routers' is a sub-package of 'backend', relative import is safer:
-from routers import inventory
-from routers import orders as orders_router
-from routers import auth as auth_router # Import the new auth router
-from routers import reports as reports_router # New import
+from routers import (inventory, orders, auth, reports)
+# from routers import inventory
+# from routers import orders as orders_router
+# from routers import auth as auth_router # Import the new auth router
+# from routers import reports as reports_router # New import
 
 
 # Configure basic logging
@@ -111,9 +112,9 @@ async def read_root():
 
 # Include your routers
 app.include_router(inventory.router, prefix="/api/v1")
-app.include_router(orders_router.router, prefix="/api/v1")
-app.include_router(auth_router.router, prefix="/api/v1") # Add the auth router
-app.include_router(reports_router.router, prefix="/api/v1") # Add the reports router
+app.include_router(orders.router, prefix="/api/v1")
+app.include_router(auth.router, prefix="/api/v1") # Add the auth router
+app.include_router(reports.router, prefix="/api/v1") # Add the reports router
 
 
 

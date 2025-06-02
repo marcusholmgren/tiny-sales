@@ -1,4 +1,4 @@
-from typing import Generator, Any
+from typing import Generator, Any, AsyncGenerator
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -7,7 +7,8 @@ from tortoise.contrib.test import MEMORY_SQLITE
 import os
 
 # Import your FastAPI app instance from main.py
-from ..main import app as actual_app
+# from main import app as actual_app
+import main
 
 # Use an in-memory SQLite database for tests by default
 TEST_DB_URL = os.getenv("TORTOISE_TEST_DB", MEMORY_SQLITE)
@@ -19,7 +20,7 @@ def anyio_backend():
     return "asyncio"
 
 @pytest.fixture(scope="session")
-async def app_for_testing() -> FastAPI:
+async def app_for_testing() -> AsyncGenerator[FastAPI, Any]:
     """
     Provides a FastAPI application instance configured for testing.
     This fixture is session-scoped, meaning the app and DB setup
@@ -29,7 +30,7 @@ async def app_for_testing() -> FastAPI:
         "connections": {"default": TEST_DB_URL},
         "apps": {
             "models": {
-                "models": ["backend.models"],
+                "models": ["models"],
                 "default_connection": "default",
             }
         },
@@ -41,22 +42,32 @@ async def app_for_testing() -> FastAPI:
     # Initialize Tortoise ORM for the test session on the actual app instance
     # This effectively reconfigures the database connection for the app during tests.
     register_tortoise(
-        actual_app,
+        main.app,
         config=test_orm_config,
         generate_schemas=True,  # Create DB schema in the test database
         add_exception_handlers=True,
     )
-    yield actual_app
+    yield main.app
     # Teardown, like closing connections, is handled by Tortoise's context management
     # when the app shuts down or register_tortoise context ends.
-    # For sqlite://:memory:, the database is ephemeral and lost on connection close.
+    # For sqlite://:memory: the database is ephemeral and lost on connection close.
 
 @pytest.fixture(scope="function")
 def client(app_for_testing: FastAPI) -> Generator[TestClient, Any, None]:
     """
-    Provides an starlette TestClient for making requests to the test application.
+    Provides a starlette TestClient for making requests to the test application.
     This client is function-scoped, so each test gets a fresh client,
     but it operates on the session-scoped app and database.
     """
+    username = "testuser"
+    password = "testpassword123"
+    email = "testuser@example.com"
     with TestClient(app_for_testing) as tc:
+        # Register user (ignore if already exists)
+        response = tc.post("/api/v1/auth/register", json={
+            "username": username,
+            "password": password,
+            "email": email
+        })
+        print(f"User registration response: {response.status_code} - {response.json()}")
         yield tc

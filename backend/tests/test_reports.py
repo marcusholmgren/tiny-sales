@@ -4,8 +4,8 @@ from httpx import AsyncClient
 from fastapi import status
 import datetime
 
-from backend.models import User, Category, InventoryItem, Order, OrderItem, OrderEvent
-from backend.schemas import TimePeriodQuery # For constructing query params if needed
+from models import User, Category, InventoryItem, Order, OrderItem, OrderEvent
+from schemas import TimePeriodQuery # For constructing query params if needed
 
 # Helper function to create auth headers
 def get_auth_headers(token: str):

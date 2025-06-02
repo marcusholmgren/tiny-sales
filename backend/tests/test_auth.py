@@ -1,4 +1,4 @@
-from backend.auth import get_password_hash, verify_password
+from auth import get_password_hash, verify_password
 
 # test password hashing and verification
 def test_password_hashing():

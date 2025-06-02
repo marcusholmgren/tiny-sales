@@ -2,8 +2,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Assuming models and schemas might be needed for direct assertions or setup
-from backend.models import Order, OrderItem, OrderEvent, InventoryItem, generate_ksuid
-from backend.schemas import OrderPublicSchema # Assuming this exists or will be created
+from models import Order, OrderItem, OrderEvent, InventoryItem, generate_ksuid
+from schemas import OrderPublicSchema # Assuming this exists or will be created
 # from backend.schemas import OrderItemPublicSchema, OrderShipRequestSchema, OrderCancelRequestSchema # Ensure these exist if used
 
 # Use anyio_backend fixture from conftest if not already picked up
@@ -17,9 +17,16 @@ async def setup_test_inventory_item():
     item = await InventoryItem.create(name="Test Product 1", quantity=100)
     return item
 
+async def get_auth_token(client: TestClient, username: str = "testuser", password: str = "testpassword123", email: str = "testuser@example.com") -> str:
+    # Get token
+    response = client.post("/api/v1/auth/token", data={"username": username, "password": password})
+    assert response.status_code == 200, response.text
+    return response.json()["access_token"]
+
 async def test_create_order_success(client: TestClient): # Changed from TestClient
     # Setup: Ensure an inventory item exists
     inventory_item = await setup_test_inventory_item()
+    token = await get_auth_token(client)
 
     order_payload = {
         "contact_name": "Test User",
@@ -33,7 +40,11 @@ async def test_create_order_success(client: TestClient): # Changed from TestClie
             }
         ]
     }
-    response = client.post("/api/v1/orders/", json=order_payload)
+    response = client.post(
+        "/api/v1/orders/",
+        json=order_payload,
+        headers={"Authorization": f"Bearer {token}"}
+    )
     assert response.status_code == 201, response.text
     data = response.json()
 
@@ -69,7 +80,9 @@ async def create_order_for_test(client: TestClient, inventory_item_public_id: st
             }
         ]
     }
-    response = client.post("/api/v1/orders/", json=order_payload)
+    token = await get_auth_token(client)
+    response = client.post("/api/v1/orders/", json=order_payload,
+                           headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 201, response.text
     # Assuming OrderPublicSchema is defined and matches the response structure
     return OrderPublicSchema(**response.json())
@@ -82,7 +95,9 @@ async def test_create_order_no_items(client: TestClient):
         "delivery_address": "456 NoItem Rd",
         "items": [] # Empty items list
     }
-    response = client.post("/api/v1/orders/", json=order_payload)
+    token = await get_auth_token(client)
+    response = client.post("/api/v1/orders/", json=order_payload,
+                           headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 422 # FastAPI's validation error for Pydantic min_items=1 (or similar)
 
 async def test_get_order_success(client: TestClient):
@@ -90,8 +105,10 @@ async def test_get_order_success(client: TestClient):
     # Use the helper to create an order
     created_order = await create_order_for_test(client, inventory_item.public_id, "Get Order Test User")
     order_public_id = created_order.public_id
+    token = await get_auth_token(client)
 
-    get_response = client.get(f"/api/v1/orders/{order_public_id}")
+    get_response = client.get(f"/api/v1/orders/{order_public_id}",
+                              headers={"Authorization": f"Bearer {token}"})
     assert get_response.status_code == 200, get_response.text
     retrieved_order_data = get_response.json()
 
@@ -103,7 +120,9 @@ async def test_get_order_success(client: TestClient):
 
 async def test_get_order_not_found(client: TestClient):
     non_existent_ksuid = generate_ksuid()
-    response = client.get(f"/api/v1/orders/{non_existent_ksuid}")
+    token = await get_auth_token(client)
+    response = client.get(f"/api/v1/orders/{non_existent_ksuid}",
+                          headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 404
 
 # --- Tests for PATCH /orders/{order_public_id}/ship ---
@@ -111,8 +130,10 @@ async def test_get_order_not_found(client: TestClient):
 async def test_ship_order_success_no_details(client: TestClient):
     inventory_item = await setup_test_inventory_item()
     order = await create_order_for_test(client, inventory_item.public_id, "Ship Order No Details User")
+    token = await get_auth_token(client)
 
-    response = client.patch(f"/api/v1/orders/{order.public_id}/ship")
+    response = client.patch(f"/api/v1/orders/{order.public_id}/ship",
+                            headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, response.text
     data = response.json()
 
@@ -128,12 +149,14 @@ async def test_ship_order_success_no_details(client: TestClient):
 async def test_ship_order_success_with_details(client: TestClient):
     inventory_item = await setup_test_inventory_item()
     order = await create_order_for_test(client, inventory_item.public_id, "Ship Order With Details User")
+    token = await get_auth_token(client)
 
     ship_payload = {
         "tracking_number": "TRK12345",
         "shipping_provider": "FastShip"
     }
-    response = client.patch(f"/api/v1/orders/{order.public_id}/ship", json=ship_payload)
+    response = client.patch(f"/api/v1/orders/{order.public_id}/ship", json=ship_payload,
+                            headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, response.text
     data = response.json()
 
@@ -149,24 +172,32 @@ async def test_ship_order_success_with_details(client: TestClient):
 
 async def test_ship_order_not_found(client: TestClient):
     non_existent_ksuid = generate_ksuid()
-    response = client.patch(f"/api/v1/orders/{non_existent_ksuid}/ship")
+    token = await get_auth_token(client)
+    response = client.patch(f"/api/v1/orders/{non_existent_ksuid}/ship",
+                            headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 404
 
 async def test_ship_order_already_shipped(client: TestClient):
     inventory_item = await setup_test_inventory_item()
     order = await create_order_for_test(client, inventory_item.public_id, "Already Shipped User")
+    token = await get_auth_token(client)
 
-    client.patch(f"/api/v1/orders/{order.public_id}/ship") # Ship it once
-    response = client.patch(f"/api/v1/orders/{order.public_id}/ship") # Try to ship again
+    client.patch(f"/api/v1/orders/{order.public_id}/ship",
+                 headers={"Authorization": f"Bearer {token}"}) # Ship it once
+    response = client.patch(f"/api/v1/orders/{order.public_id}/ship",
+                            headers={"Authorization": f"Bearer {token}"}) # Try to ship again
     assert response.status_code == 400
     assert "already shipped" in response.json()["detail"].lower()
 
 async def test_ship_order_cancelled(client: TestClient):
     inventory_item = await setup_test_inventory_item()
     order = await create_order_for_test(client, inventory_item.public_id, "Ship Cancelled User")
+    token = await get_auth_token(client)
 
-    client.patch(f"/api/v1/orders/{order.public_id}/cancel", json={"reason": "Test cancellation"}) # Cancel it
-    response = client.patch(f"/api/v1/orders/{order.public_id}/ship") # Try to ship
+    client.patch(f"/api/v1/orders/{order.public_id}/cancel", json={"reason": "Test cancellation"},
+                 headers={"Authorization": f"Bearer {token}"}) # Cancel it
+    response = client.patch(f"/api/v1/orders/{order.public_id}/ship",
+                            headers={"Authorization": f"Bearer {token}"}) # Try to ship
     assert response.status_code == 400
     assert "cannot ship a cancelled order" in response.json()["detail"].lower()
 
@@ -175,8 +206,10 @@ async def test_ship_order_cancelled(client: TestClient):
 async def test_cancel_order_success_no_reason(client: TestClient):
     inventory_item = await setup_test_inventory_item()
     order = await create_order_for_test(client, inventory_item.public_id, "Cancel No Reason User")
+    token = await get_auth_token(client)
 
-    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel")
+    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel",
+                            headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, response.text
     data = response.json()
 
@@ -192,9 +225,11 @@ async def test_cancel_order_success_no_reason(client: TestClient):
 async def test_cancel_order_success_with_reason(client: TestClient):
     inventory_item = await setup_test_inventory_item()
     order = await create_order_for_test(client, inventory_item.public_id, "Cancel With Reason User")
+    token = await get_auth_token(client)
 
     cancel_payload = {"reason": "Customer changed mind"}
-    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel", json=cancel_payload)
+    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel", json=cancel_payload,
+                            headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, response.text
     data = response.json()
 
@@ -209,25 +244,33 @@ async def test_cancel_order_success_with_reason(client: TestClient):
 
 async def test_cancel_order_not_found(client: TestClient):
     non_existent_ksuid = generate_ksuid()
-    response = client.patch(f"/api/v1/orders/{non_existent_ksuid}/cancel")
+    token = await get_auth_token(client)
+    response = client.patch(f"/api/v1/orders/{non_existent_ksuid}/cancel",
+                            headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 404
 
 async def test_cancel_order_already_cancelled(client: TestClient):
     inventory_item = await setup_test_inventory_item()
     order = await create_order_for_test(client, inventory_item.public_id, "Already Cancelled User")
+    token = await get_auth_token(client)
 
-    client.patch(f"/api/v1/orders/{order.public_id}/cancel") # Cancel it once
-    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel") # Try to cancel again
+    client.patch(f"/api/v1/orders/{order.public_id}/cancel",
+                 headers={"Authorization": f"Bearer {token}"}) # Cancel it once
+    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel",
+                            headers={"Authorization": f"Bearer {token}"}) # Try to cancel again
     assert response.status_code == 400
     assert "already cancelled" in response.json()["detail"].lower()
 
 async def test_cancel_order_shipped_allowed_with_reason(client: TestClient):
     inventory_item = await setup_test_inventory_item()
     order = await create_order_for_test(client, inventory_item.public_id, "Cancel Shipped User")
+    token = await get_auth_token(client)
 
-    client.patch(f"/api/v1/orders/{order.public_id}/ship", json={"tracking_number": "TRKSHIPFIRST"})
+    client.patch(f"/api/v1/orders/{order.public_id}/ship", json={"tracking_number": "TRKSHIPFIRST"},
+                 headers={"Authorization": f"Bearer {token}"}) # Ship it first
     cancel_payload = {"reason": "Customer requested cancellation after shipping"}
-    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel", json=cancel_payload)
+    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel", json=cancel_payload,
+                            headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, response.text # Assuming router allows this
     data = response.json()
     assert data["status"] == "cancelled"
@@ -241,9 +284,12 @@ async def test_cancel_order_shipped_allowed_with_reason(client: TestClient):
 async def test_cancel_order_shipped_allowed_no_reason(client: TestClient):
     inventory_item = await setup_test_inventory_item()
     order = await create_order_for_test(client, inventory_item.public_id, "Cancel Shipped No Reason User")
+    token = await get_auth_token(client)
 
-    client.patch(f"/api/v1/orders/{order.public_id}/ship", json={"tracking_number": "TRKSHIPFIRSTNOREASON"})
-    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel")
+    client.patch(f"/api/v1/orders/{order.public_id}/ship", json={"tracking_number": "TRKSHIPFIRSTNOREASON"},
+                 headers={"Authorization": f"Bearer {token}"}) # Ship it first
+    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel",
+                            headers={"Authorization": f"Bearer {token}"}) # Try to cancel without reason
     assert response.status_code == 400, response.text # Assuming router allows this
     data = response.json()
     assert data["detail"] == "Cannot cancel a shipped order without a valid reason."
