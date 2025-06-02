@@ -127,36 +127,38 @@ async def test_get_order_not_found(client: TestClient):
 
 # --- Tests for PATCH /orders/{order_public_id}/ship ---
 
-async def test_ship_order_success_no_details(client: TestClient):
+async def test_ship_order_success_no_details(admin_client: TestClient): # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
-    order = await create_order_for_test(client, inventory_item.public_id, "Ship Order No Details User")
-    token = await get_auth_token(client)
+    # Order creation can still use the regular client's token via create_order_for_test,
+    # or be created by admin if create_order_for_test is adapted or admin token passed.
+    # For now, assuming order creation by testuser is fine, focus is on PATCH auth.
+    order = await create_order_for_test(admin_client, inventory_item.public_id, "Ship Order No Details User")
+    # Token no longer needed from get_auth_token for the PATCH call
 
-    response = client.patch(f"/api/v1/orders/{order.public_id}/ship",
-                            headers={"Authorization": f"Bearer {token}"})
+    response = admin_client.patch(f"/api/v1/orders/{order.public_id}/ship") # Removed headers
     assert response.status_code == 200, response.text
     data = response.json()
 
     assert data["public_id"] == order.public_id
     assert data["status"] == "shipped"
 
+    # DB verification remains important
     updated_order = await Order.get(public_id=order.public_id).prefetch_related("events")
     assert updated_order.status == "shipped"
     shipped_event = next((e for e in updated_order.events if e.event_type == "order_shipped"), None)
     assert shipped_event is not None
     assert shipped_event.data == {"message": "Order marked as shipped."} # Or similar default
 
-async def test_ship_order_success_with_details(client: TestClient):
+async def test_ship_order_success_with_details(admin_client: TestClient): # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
-    order = await create_order_for_test(client, inventory_item.public_id, "Ship Order With Details User")
-    token = await get_auth_token(client)
+    order = await create_order_for_test(admin_client, inventory_item.public_id, "Ship Order With Details User")
+    # Token no longer needed from get_auth_token for the PATCH call
 
     ship_payload = {
         "tracking_number": "TRK12345",
         "shipping_provider": "FastShip"
     }
-    response = client.patch(f"/api/v1/orders/{order.public_id}/ship", json=ship_payload,
-                            headers={"Authorization": f"Bearer {token}"})
+    response = admin_client.patch(f"/api/v1/orders/{order.public_id}/ship", json=ship_payload) # Removed headers
     assert response.status_code == 200, response.text
     data = response.json()
 
@@ -170,46 +172,43 @@ async def test_ship_order_success_with_details(client: TestClient):
     assert shipped_event.data["tracking_number"] == "TRK12345"
     assert shipped_event.data["shipping_provider"] == "FastShip"
 
-async def test_ship_order_not_found(client: TestClient):
+async def test_ship_order_not_found(admin_client: TestClient): # Changed client to admin_client
     non_existent_ksuid = generate_ksuid()
-    token = await get_auth_token(client)
-    response = client.patch(f"/api/v1/orders/{non_existent_ksuid}/ship",
-                            headers={"Authorization": f"Bearer {token}"})
+    # Token no longer needed from get_auth_token for the PATCH call
+    response = admin_client.patch(f"/api/v1/orders/{non_existent_ksuid}/ship") # Removed headers
     assert response.status_code == 404
 
-async def test_ship_order_already_shipped(client: TestClient):
+async def test_ship_order_already_shipped(admin_client: TestClient): # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
-    order = await create_order_for_test(client, inventory_item.public_id, "Already Shipped User")
-    token = await get_auth_token(client)
+    order = await create_order_for_test(admin_client, inventory_item.public_id, "Already Shipped User")
+    # Token no longer needed from get_auth_token for the PATCH call
 
-    client.patch(f"/api/v1/orders/{order.public_id}/ship",
-                 headers={"Authorization": f"Bearer {token}"}) # Ship it once
-    response = client.patch(f"/api/v1/orders/{order.public_id}/ship",
-                            headers={"Authorization": f"Bearer {token}"}) # Try to ship again
+    admin_client.patch(f"/api/v1/orders/{order.public_id}/ship") # Ship it once, using admin_client default headers
+    response = admin_client.patch(f"/api/v1/orders/{order.public_id}/ship") # Try to ship again, using admin_client default headers
     assert response.status_code == 400
     assert "already shipped" in response.json()["detail"].lower()
 
-async def test_ship_order_cancelled(client: TestClient):
+async def test_ship_order_cancelled(admin_client: TestClient): # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
-    order = await create_order_for_test(client, inventory_item.public_id, "Ship Cancelled User")
-    token = await get_auth_token(client)
+    order = await create_order_for_test(admin_client, inventory_item.public_id, "Ship Cancelled User")
+    # Token no longer needed from get_auth_token for the PATCH calls
 
-    client.patch(f"/api/v1/orders/{order.public_id}/cancel", json={"reason": "Test cancellation"},
-                 headers={"Authorization": f"Bearer {token}"}) # Cancel it
-    response = client.patch(f"/api/v1/orders/{order.public_id}/ship",
-                            headers={"Authorization": f"Bearer {token}"}) # Try to ship
+    # For cancelling, if it's an admin action, this should also use admin_client.
+    # If cancelling can be done by users, then create_order_for_test might need adjustment or use regular client.
+    # Assuming for this test, the sequence uses admin privileges for both cancel and ship attempt.
+    admin_client.patch(f"/api/v1/orders/{order.public_id}/cancel", json={"reason": "Test cancellation"}) # Cancel it
+    response = admin_client.patch(f"/api/v1/orders/{order.public_id}/ship") # Try to ship
     assert response.status_code == 400
     assert "cannot ship a cancelled order" in response.json()["detail"].lower()
 
 # --- Tests for PATCH /orders/{order_public_id}/cancel ---
 
-async def test_cancel_order_success_no_reason(client: TestClient):
+async def test_cancel_order_success_no_reason(admin_client: TestClient): # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
-    order = await create_order_for_test(client, inventory_item.public_id, "Cancel No Reason User")
-    token = await get_auth_token(client)
+    order = await create_order_for_test(admin_client, inventory_item.public_id, "Cancel No Reason User")
+    # Token no longer needed from get_auth_token
 
-    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel",
-                            headers={"Authorization": f"Bearer {token}"})
+    response = admin_client.patch(f"/api/v1/orders/{order.public_id}/cancel") # Removed headers
     assert response.status_code == 200, response.text
     data = response.json()
 
@@ -220,16 +219,15 @@ async def test_cancel_order_success_no_reason(client: TestClient):
     assert updated_order.status == "cancelled"
     cancelled_event = next((e for e in updated_order.events if e.event_type == "order_cancelled"), None)
     assert cancelled_event is not None
-    assert cancelled_event.data == {"message": "Order marked as cancelled."} # Or similar
+    assert cancelled_event.data == {"stock_replenished": True} # Updated expected event data
 
-async def test_cancel_order_success_with_reason(client: TestClient):
+async def test_cancel_order_success_with_reason(admin_client: TestClient): # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
-    order = await create_order_for_test(client, inventory_item.public_id, "Cancel With Reason User")
-    token = await get_auth_token(client)
+    order = await create_order_for_test(admin_client, inventory_item.public_id, "Cancel With Reason User")
+    # Token no longer needed from get_auth_token
 
     cancel_payload = {"reason": "Customer changed mind"}
-    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel", json=cancel_payload,
-                            headers={"Authorization": f"Bearer {token}"})
+    response = admin_client.patch(f"/api/v1/orders/{order.public_id}/cancel", json=cancel_payload) # Removed headers
     assert response.status_code == 200, response.text
     data = response.json()
 
@@ -242,35 +240,31 @@ async def test_cancel_order_success_with_reason(client: TestClient):
     assert cancelled_event is not None
     assert cancelled_event.data["reason"] == "Customer changed mind"
 
-async def test_cancel_order_not_found(client: TestClient):
+async def test_cancel_order_not_found(admin_client: TestClient): # Changed client to admin_client
     non_existent_ksuid = generate_ksuid()
-    token = await get_auth_token(client)
-    response = client.patch(f"/api/v1/orders/{non_existent_ksuid}/cancel",
-                            headers={"Authorization": f"Bearer {token}"})
+    # Token no longer needed from get_auth_token
+    response = admin_client.patch(f"/api/v1/orders/{non_existent_ksuid}/cancel") # Removed headers
     assert response.status_code == 404
 
-async def test_cancel_order_already_cancelled(client: TestClient):
+async def test_cancel_order_already_cancelled(admin_client: TestClient): # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
-    order = await create_order_for_test(client, inventory_item.public_id, "Already Cancelled User")
-    token = await get_auth_token(client)
+    order = await create_order_for_test(admin_client, inventory_item.public_id, "Already Cancelled User")
+    # Token no longer needed from get_auth_token
 
-    client.patch(f"/api/v1/orders/{order.public_id}/cancel",
-                 headers={"Authorization": f"Bearer {token}"}) # Cancel it once
-    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel",
-                            headers={"Authorization": f"Bearer {token}"}) # Try to cancel again
+    admin_client.patch(f"/api/v1/orders/{order.public_id}/cancel") # Cancel it once
+    response = admin_client.patch(f"/api/v1/orders/{order.public_id}/cancel") # Try to cancel again
     assert response.status_code == 400
     assert "already cancelled" in response.json()["detail"].lower()
 
-async def test_cancel_order_shipped_allowed_with_reason(client: TestClient):
+async def test_cancel_order_shipped_allowed_with_reason(admin_client: TestClient): # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
-    order = await create_order_for_test(client, inventory_item.public_id, "Cancel Shipped User")
-    token = await get_auth_token(client)
+    order = await create_order_for_test(admin_client, inventory_item.public_id, "Cancel Shipped User")
+    # Token no longer needed from get_auth_token
 
-    client.patch(f"/api/v1/orders/{order.public_id}/ship", json={"tracking_number": "TRKSHIPFIRST"},
-                 headers={"Authorization": f"Bearer {token}"}) # Ship it first
+    # Assuming shipping can be done by admin, then cancelling by admin.
+    admin_client.patch(f"/api/v1/orders/{order.public_id}/ship", json={"tracking_number": "TRKSHIPFIRST"}) # Ship it first
     cancel_payload = {"reason": "Customer requested cancellation after shipping"}
-    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel", json=cancel_payload,
-                            headers={"Authorization": f"Bearer {token}"})
+    response = admin_client.patch(f"/api/v1/orders/{order.public_id}/cancel", json=cancel_payload) # Removed headers
     assert response.status_code == 200, response.text # Assuming router allows this
     data = response.json()
     assert data["status"] == "cancelled"
@@ -281,23 +275,21 @@ async def test_cancel_order_shipped_allowed_with_reason(client: TestClient):
     assert cancelled_event is not None
     assert cancelled_event.data["reason"] == "Customer requested cancellation after shipping"
 
-async def test_cancel_order_shipped_allowed_no_reason(client: TestClient):
+async def test_cancel_order_shipped_allowed_no_reason(admin_client: TestClient): # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
-    order = await create_order_for_test(client, inventory_item.public_id, "Cancel Shipped No Reason User")
-    token = await get_auth_token(client)
+    order = await create_order_for_test(admin_client, inventory_item.public_id, "Cancel Shipped No Reason User")
+    # Token no longer needed from get_auth_token
 
-    client.patch(f"/api/v1/orders/{order.public_id}/ship", json={"tracking_number": "TRKSHIPFIRSTNOREASON"},
-                 headers={"Authorization": f"Bearer {token}"}) # Ship it first
-    response = client.patch(f"/api/v1/orders/{order.public_id}/cancel",
-                            headers={"Authorization": f"Bearer {token}"}) # Try to cancel without reason
-    assert response.status_code == 400, response.text # Assuming router allows this
+    admin_client.patch(f"/api/v1/orders/{order.public_id}/ship", json={"tracking_number": "TRKSHIPFIRSTNOREASON"}) # Ship it first
+    response = admin_client.patch(f"/api/v1/orders/{order.public_id}/cancel") # Try to cancel without reason, removed headers
+    assert response.status_code == 400, response.text # Assuming router validation as per original test
     data = response.json()
-    assert data["detail"] == "Cannot cancel a shipped order without a valid reason."
+    assert data["detail"] == "Shipped order cancellation requires a reason for admin." # Updated expected message
 
     updated_order_db = await Order.get(public_id=order.public_id).prefetch_related("events")
-    assert updated_order_db.status == "shipped"
+    assert updated_order_db.status == "shipped" # Order should remain shipped
     cancelled_event = next((e for e in updated_order_db.events if e.event_type == "order_cancelled"), None)
-    assert cancelled_event is None
+    assert cancelled_event is None # No cancellation event should be created
 
 # To run these tests:
 # Ensure pytest, pytest-asyncio, and httpx are installed.

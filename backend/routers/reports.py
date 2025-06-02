@@ -2,11 +2,14 @@
 import logging
 from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import List, Optional, Annotated
-from tortoise.functions import Sum, Count, Coalesce
-from tortoise.expressions import Q, F # Ensure Q and F are imported
+from tortoise.functions import Count # Sum, F, RawSQL, FloatField might not be needed here anymore for this specific function
+from tortoise.expressions import Q # F might not be needed here anymore
+# FloatField will be implicitly handled by Python's float type after DB retrieval
 import datetime
 
 from models import User, Order, OrderItem, InventoryItem, Category
+# Removed Sum, F, RawSQL, FloatField from direct imports if only used in the modified part
+# They might still be needed for other report functions.
 import auth
 from schemas import (
     TimePeriodQuery,
@@ -53,21 +56,29 @@ async def get_total_sales_report(
         query = query.filter(user_id=current_user.id)
     orders = await query.all()
     order_ids = [order.id for order in orders]
+    
     if not order_ids:
         return TotalSalesResponse(total_revenue=0.0, item_count=0, order_count=0, start_date=period.start_date, end_date=period.end_date)
-    order_items_query = OrderItem.filter(order_id__in=order_ids)
-    total_revenue_aggregation = await order_items_query.annotate(
-        total=Sum(F('price_at_purchase') * F('quantity'))
-    ).first()
-    total_revenue = total_revenue_aggregation.total if total_revenue_aggregation and total_revenue_aggregation.total is not None else 0.0
-    total_items_aggregation = await order_items_query.annotate(
-        total_qty=Sum('quantity')
-    ).first()
-    total_items_sold = total_items_aggregation.total_qty if total_items_aggregation and total_items_aggregation.total_qty is not None else 0
+
+    # Fetch relevant OrderItem data for Python-side calculation
+    items_data = await OrderItem.filter(order_id__in=order_ids).values(
+        'price_at_purchase', 'quantity'
+    )
+
+    total_revenue = sum(
+        item['price_at_purchase'] * item['quantity']
+        for item in items_data
+        if item['price_at_purchase'] is not None and item['quantity'] is not None
+    )
+    
+    item_count = sum(item['quantity'] for item in items_data if item['quantity'] is not None)
+    
+    # order_count is len(orders) which is already calculated from the initial Order query.
+
     return TotalSalesResponse(
-        total_revenue=float(total_revenue),
-        item_count=total_items_sold,
-        order_count=len(orders),
+        total_revenue=float(total_revenue), # Ensure it's float
+        item_count=item_count,
+        order_count=len(orders), # Use the count of filtered orders
         start_date=period.start_date,
         end_date=period.end_date
     )
