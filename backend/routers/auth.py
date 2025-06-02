@@ -3,7 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
 
-from .. import schemas, models, auth # Using relative imports
+import schemas
+import models
+import auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter(

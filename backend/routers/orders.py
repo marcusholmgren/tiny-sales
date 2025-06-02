@@ -5,9 +5,9 @@ from tortoise.transactions import in_transaction
 from tortoise.exceptions import DoesNotExist
 from typing import List, Optional, Annotated # Added Annotated
 
-from backend.models import Order, OrderItem, OrderEvent, InventoryItem, User, generate_ksuid # Added User
-from backend import auth # Added auth
-from backend.schemas import (
+from models import Order, OrderItem, OrderEvent, InventoryItem, User, generate_ksuid # Added User
+import auth # Added auth
+from schemas import (
     OrderCreateSchema,
     OrderPublicSchema,
     OrderItemCreateSchema,

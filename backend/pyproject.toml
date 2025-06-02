@@ -16,9 +16,9 @@ dependencies = [
 ]
 
 [tool.aerich]
-tortoise_orm = "backend.main.TORTOISE_ORM_CONFIG"
+tortoise_orm = "main.TORTOISE_ORM_CONFIG"
 location = "./migrations"
-src_folder = "../"
+src_folder = "./."
 
 [dependency-groups]
 dev = ["pytest>=8.3.5", "pytest-asyncio>=1.0.0"]
