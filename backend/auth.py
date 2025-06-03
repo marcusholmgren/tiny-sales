@@ -9,7 +9,8 @@ from jose import JWTError, jwt
 from pydantic import ValidationError
 import bcrypt
 
-from . import models, schemas  # Assuming models and schemas are in the same directory or accessible
+import models, schemas
+
 
 logger = logging.getLogger(__name__)
 # Configuration

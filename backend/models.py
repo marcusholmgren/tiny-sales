@@ -18,6 +18,7 @@ class InventoryItem(TimestampMixin):
     public_id = fields.CharField(max_length=27, unique=True, default=generate_ksuid, db_index=True)
     name = fields.CharField(max_length=255)
     quantity = fields.IntField(default=0)
+    current_price = fields.FloatField(default=0.0, description="Current price of the inventory item") # New field
     deleted_at = fields.DatetimeField(null=True, default=None) # For soft delete
 
     order_items_relation: fields.ReverseRelation["OrderItem"]
@@ -26,7 +27,7 @@ class InventoryItem(TimestampMixin):
     )
 
     def __str__(self):
-        return f"{self.name} (Stock: {self.quantity})"
+        return f"{self.name} (Stock: {self.quantity}, Price: ${self.current_price:.2f})" # Updated __str__
 
     class Meta:
         table = "inventory_items"
