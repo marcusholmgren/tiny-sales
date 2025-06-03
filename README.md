@@ -24,5 +24,12 @@ uv run fastapi dev
 
 ## Technology
 
-- FastAPI
-- TortoiseORM
+- [uv](https://docs.astral.sh/uv/)
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [TortoiseORM](https://tortoise-orm.readthedocs.io/en/latest/)
+- [Aerich](https://tortoise-orm.readthedocs.io/en/latest/aerich.html)
+- [SQLite](https://www.sqlite.org/index.html)
+- [Svix-KSUID](https://github.com/svix/python-ksuid)
+- [python-jose](https://github.com/mpdavis/python-jose)
+- [bcrypt](https://github.com/pyca/bcrypt/)
+- [pytest](https://docs.pytest.org/en/stable/) (for testing)
