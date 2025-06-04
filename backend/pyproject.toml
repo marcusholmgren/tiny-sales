@@ -13,7 +13,11 @@ dependencies = [
     "aerich[toml]>=0.8.0",
     "python-jose[cryptography]>=3.5.0",
     "bcrypt>=4.3.0",
+    "typer[all]>=0.12.3", # Added Typer
 ]
+
+[project.scripts]
+manage-users = "backend.cli.main:app"
 
 [tool.aerich]
 tortoise_orm = "main.TORTOISE_ORM_CONFIG"
