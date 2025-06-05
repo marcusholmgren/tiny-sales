@@ -4,8 +4,8 @@ from fastapi import APIRouter, HTTPException, status, Query, Depends # Added Dep
 from typing import Optional, List, Annotated # Added List and Annotated
 
 # Absolute imports assuming 'backend' is the top-level package in PYTHONPATH
-from models import InventoryItem, Category, User # Added User
-from schemas import (
+from ..models import InventoryItem, Category, User # Added User
+from ..schemas import (
     InventoryItemCreate,
     InventoryItemUpdate,
     InventoryItemResponse,
@@ -14,7 +14,7 @@ from schemas import (
     CategoryCreate,
     CategoryUpdate
 )
-import auth # Added auth import
+from .. import auth # Added auth import
 
 logger = logging.getLogger(__name__)
 

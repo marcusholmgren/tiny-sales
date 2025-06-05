@@ -5,8 +5,8 @@ from fastapi.testclient import TestClient # Added for type hinting
 from fastapi import status
 import datetime
 
-from models import User, Category, InventoryItem, Order, OrderItem, OrderEvent, generate_ksuid # Added generate_ksuid
-from schemas import TimePeriodQuery # For constructing query params if needed
+from ..models import User, Category, InventoryItem, Order, OrderItem, OrderEvent, generate_ksuid # Added generate_ksuid
+from ..schemas import TimePeriodQuery # For constructing query params if needed
 
 # Helper function to create auth headers
 def get_auth_headers(token: str):

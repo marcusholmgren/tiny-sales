@@ -6,12 +6,12 @@ from fastapi.testclient import TestClient
 from tortoise.contrib.fastapi import register_tortoise
 from tortoise.contrib.test import MEMORY_SQLITE
 import os
-from models import User, Order, OrderItem, OrderEvent, InventoryItem, Category # Added more models
-from auth import get_password_hash # Changed import
+from ..models import User, Order, OrderItem, OrderEvent, InventoryItem, Category # Added more models
+from ..auth import get_password_hash # Changed import
 
 # Import your FastAPI app instance from main.py
 # from main import app as actual_app
-import main
+from .. import main
 
 # Use an in-memory SQLite database for tests by default
 TEST_DB_URL = os.getenv("TORTOISE_TEST_DB", MEMORY_SQLITE)
@@ -22,7 +22,7 @@ def anyio_backend():
     # Required for pytest-asyncio to run async tests
     return "asyncio"
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def app_for_testing() -> AsyncGenerator[FastAPI, Any]:
     """
     Provides a FastAPI application instance configured for testing.
@@ -33,7 +33,7 @@ async def app_for_testing() -> AsyncGenerator[FastAPI, Any]:
         "connections": {"default": TEST_DB_URL},
         "apps": {
             "models": {
-                "models": ["models"],
+                "models": ["backend.models"],
                 "default_connection": "default",
             }
         },
@@ -90,7 +90,7 @@ def client(app_for_testing: FastAPI) -> Generator[TestClient, Any, None]:
         # print(f"User registration response: {response.status_code} - {response.json()}") # Optional: suppress noisy output
         yield tc
 
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function")
 async def admin_client(app_for_testing: FastAPI) -> Generator[TestClient, Any, None]:
     """
     Provides a TestClient authenticated as an admin user.

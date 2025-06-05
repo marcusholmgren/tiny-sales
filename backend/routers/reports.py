@@ -7,11 +7,11 @@ from tortoise.expressions import Q # F might not be needed here anymore
 # FloatField will be implicitly handled by Python's float type after DB retrieval
 import datetime
 
-from models import User, Order, OrderItem, InventoryItem, Category
+from ..models import User, Order, OrderItem, InventoryItem, Category
 # Removed Sum, F, RawSQL, FloatField from direct imports if only used in the modified part
 # They might still be needed for other report functions.
-import auth
-from schemas import (
+from .. import auth
+from ..schemas import (
     TimePeriodQuery,
     TotalSalesResponse,
     SalesByProductResponse,
