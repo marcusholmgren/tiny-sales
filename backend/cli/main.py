@@ -7,13 +7,14 @@ import sys
 from pathlib import Path
 
 # Add project root to sys.path to allow absolute imports from 'backend'
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parents[2]
+# print(f"Project root: {project_root}") # This line can remain commented
 sys.path.insert(0, str(project_root))
 
 # Now imports from 'backend' should work
 from backend import models
-from backend.auth import get_password_hash # To hash passwords
-from backend.models import User # Explicit import for User model
+from backend.auth import get_password_hash  # To hash passwords
+from backend.models import User  # Explicit import for User model
 
 # Replicate TORTOISE_ORM_CONFIG for the CLI
 # Ensure this path is correct when running the CLI
@@ -193,8 +194,11 @@ async def enable_user_account(
 
 # Placeholder for testing db connection (can be removed later)
 @app.command("test-db-connection")
-async def test_db_connection_command():
+def test_db_connection_command_sync():
     """Tests the database connection and lists user models."""
+    asyncio.run(test_db_connection_command())
+
+async def test_db_connection_command():
     async with DBConnection():
         typer.echo("Successfully connected to the database.")
         try:

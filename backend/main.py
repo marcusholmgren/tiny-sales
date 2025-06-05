@@ -11,7 +11,7 @@ from tortoise.contrib.fastapi import register_tortoise, tortoise_exception_handl
 # Assuming your routers and models are structured to be imported like this.
 # This might require tiny-sales/backend to be in PYTHONPATH or specific run configurations.
 # If 'routers' is a sub-package of 'backend', relative import is safer:
-from routers import (inventory, orders, auth, reports)
+from .routers import (inventory, orders, auth, reports)
 # from routers import inventory
 # from routers import orders as orders_router
 # from routers import auth as auth_router # Import the new auth router
@@ -52,7 +52,7 @@ TORTOISE_ORM_CONFIG = {
     "apps": {
         "models": { # This is an app label, can be anything
             "models": [
-                "models",         # Changed from "backend.models"
+                "backend.models",         # Changed from "backend.models"
                 "aerich.models"   # For Aerich migrations
             ],
             "default_connection": "default",
