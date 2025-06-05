@@ -2,8 +2,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Assuming models and schemas might be needed for direct assertions or setup
-from ..models import Order, OrderItem, OrderEvent, InventoryItem, generate_ksuid
-from ..schemas import OrderPublicSchema # Assuming this exists or will be created
+from app.features.orders.models import Order, OrderItem, OrderEvent
+from app.features.inventory.models import InventoryItem
+from app.common.models import generate_ksuid
+from app.features.orders.schemas import OrderPublicSchema # Assuming this exists or will be created
 # from backend.schemas import OrderItemPublicSchema, OrderShipRequestSchema, OrderCancelRequestSchema # Ensure these exist if used
 
 # Use anyio_backend fixture from conftest if not already picked up

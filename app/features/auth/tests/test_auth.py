@@ -1,4 +1,4 @@
-from ..auth import get_password_hash, verify_password
+from app.features.auth.security import get_password_hash, verify_password
 
 # test password hashing and verification
 def test_password_hashing():

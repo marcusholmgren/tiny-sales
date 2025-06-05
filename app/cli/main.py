@@ -12,9 +12,9 @@ project_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(project_root))
 
 # Now imports from 'backend' should work
-from backend import models
-from backend.auth import get_password_hash  # To hash passwords
-from backend.models import User  # Explicit import for User model
+# from backend import models # This will be removed
+from app.features.auth.security import get_password_hash  # To hash passwords
+from app.features.auth.models import User as AuthUser  # Explicit import for User model
 
 # Replicate TORTOISE_ORM_CONFIG for the CLI
 # Ensure this path is correct when running the CLI
@@ -35,7 +35,10 @@ TORTOISE_ORM_CONFIG = {
     "apps": {
         "models": {
             "models": [
-                "backend.models", # Use fully qualified path
+                "app.features.auth.models",
+                "app.features.inventory.models",
+                "app.features.orders.models",
+                "app.common.models",
                 "aerich.models"   # For Aerich migrations
             ],
             "default_connection": "default",
@@ -76,15 +79,15 @@ async def create_admin_user(
         typer.echo(f"Attempting to create admin user: {username} ({email})...")
         try:
             # Check if user already exists
-            if await User.filter(username=username).exists():
+            if await AuthUser.filter(username=username).exists():
                 typer.secho(f"Error: User with username '{username}' already exists.", fg=typer.colors.RED)
                 raise typer.Exit(code=1)
-            if await User.filter(email=email).exists():
+            if await AuthUser.filter(email=email).exists():
                 typer.secho(f"Error: User with email '{email}' already exists.", fg=typer.colors.RED)
                 raise typer.Exit(code=1)
 
             hashed_password = get_password_hash(password)
-            admin_user = await User.create(
+            admin_user = await AuthUser.create(
                 username=username,
                 email=email,
                 hashed_password=hashed_password,
@@ -108,7 +111,7 @@ async def promote_user_to_admin(
     async with DBConnection():
         typer.echo(f"Attempting to promote user '{username}' to admin...")
         try:
-            user = await User.get_or_none(username=username)
+            user = await AuthUser.get_or_none(username=username)
 
             if not user:
                 typer.secho(f"Error: User with username '{username}' not found.", fg=typer.colors.RED)
@@ -142,7 +145,7 @@ async def disable_user_account(
     async with DBConnection():
         typer.echo(f"Attempting to disable user account '{username}'...")
         try:
-            user = await User.get_or_none(username=username)
+            user = await AuthUser.get_or_none(username=username)
 
             if not user:
                 typer.secho(f"Error: User with username '{username}' not found.", fg=typer.colors.RED)
@@ -171,7 +174,7 @@ async def enable_user_account(
     async with DBConnection():
         typer.echo(f"Attempting to enable user account '{username}'...")
         try:
-            user = await User.get_or_none(username=username)
+            user = await AuthUser.get_or_none(username=username)
 
             if not user:
                 typer.secho(f"Error: User with username '{username}' not found.", fg=typer.colors.RED)
@@ -202,10 +205,10 @@ async def test_db_connection_command():
     async with DBConnection():
         typer.echo("Successfully connected to the database.")
         try:
-            user_count = await models.User.all().count()
+            user_count = await AuthUser.all().count()
             typer.echo(f"Found {user_count} user(s) in the database.")
             if user_count > 0:
-                first_user = await models.User.first()
+                first_user = await AuthUser.first()
                 typer.echo(f"First user: {first_user}")
         except Exception as e:
             typer.echo(f"Error querying users: {e}", err=True)

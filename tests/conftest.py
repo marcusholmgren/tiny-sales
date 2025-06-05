@@ -6,12 +6,14 @@ from fastapi.testclient import TestClient
 from tortoise.contrib.fastapi import register_tortoise
 from tortoise.contrib.test import MEMORY_SQLITE
 import os
-from ..models import User, Order, OrderItem, OrderEvent, InventoryItem, Category # Added more models
-from ..auth import get_password_hash # Changed import
+from app.features.auth.models import User
+from app.features.orders.models import Order, OrderItem, OrderEvent
+from app.features.inventory.models import InventoryItem, Category # Added more models
+from app.features.auth.security import get_password_hash # Changed import
 
 # Import your FastAPI app instance from main.py
 # from main import app as actual_app
-from .. import main
+from app import main
 
 # Use an in-memory SQLite database for tests by default
 TEST_DB_URL = os.getenv("TORTOISE_TEST_DB", MEMORY_SQLITE)
@@ -33,7 +35,13 @@ async def app_for_testing() -> AsyncGenerator[FastAPI, Any]:
         "connections": {"default": TEST_DB_URL},
         "apps": {
             "models": {
-                "models": ["backend.models"],
+                "models": [
+                    "app.features.auth.models",
+                    "app.features.inventory.models",
+                    "app.features.orders.models",
+                    "app.common.models",
+                    "aerich.models"
+                ],
                 "default_connection": "default",
             }
         },
