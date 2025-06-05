@@ -11,7 +11,10 @@ from tortoise.contrib.fastapi import register_tortoise, tortoise_exception_handl
 # Assuming your routers and models are structured to be imported like this.
 # This might require tiny-sales/backend to be in PYTHONPATH or specific run configurations.
 # If 'routers' is a sub-package of 'backend', relative import is safer:
-from .routers import (inventory, orders, auth, reports)
+from app.features.inventory.router import router as inventory_router
+from app.features.orders.router import router as orders_router
+from app.features.auth.router import router as auth_router
+from app.features.reports.router import router as reports_router
 # from routers import inventory
 # from routers import orders as orders_router
 # from routers import auth as auth_router # Import the new auth router
@@ -52,7 +55,10 @@ TORTOISE_ORM_CONFIG = {
     "apps": {
         "models": { # This is an app label, can be anything
             "models": [
-                "backend.models",         # Changed from "backend.models"
+                "app.features.auth.models",
+                "app.features.inventory.models",
+                "app.features.orders.models",
+                "app.common.models",
                 "aerich.models"   # For Aerich migrations
             ],
             "default_connection": "default",
@@ -111,10 +117,10 @@ async def read_root():
     return {"message": "Welcome to the Tiny Sales API!"}
 
 # Include your routers
-app.include_router(inventory.router, prefix="/api/v1")
-app.include_router(orders.router, prefix="/api/v1")
-app.include_router(auth.router, prefix="/api/v1") # Add the auth router
-app.include_router(reports.router, prefix="/api/v1") # Add the reports router
+app.include_router(inventory_router, prefix="/api/v1")
+app.include_router(orders_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1") # Add the auth router
+app.include_router(reports_router, prefix="/api/v1") # Add the reports router
 
 
 
