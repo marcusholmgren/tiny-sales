@@ -181,3 +181,44 @@ cython_debug/
 
 # JetBrains IDEs
 .idea/
+
+# General Python ignores
+# __pycache__/ already exists
+# *.py[cod] already exists
+# *$py.class already exists
+
+# Virtual environment
+# venv/ already exists
+# env/ already exists
+# .venv/ already exists
+# .env already exists
+
+# IDE specific files
+# .idea/ already exists
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Test artifacts
+# .pytest_cache/ already exists
+# htmlcov/ already exists
+nosetests.xml
+coverage.xml
+# *.log already exists
+
+# Database files
+# *.sqlite3 already exists
+*.db
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+# build/ already exists
+# dist/ already exists
+# *.egg-info/ already exists
+*.egg
+
+# Notebook checkpoints
+# .ipynb_checkpoints/ already exists
