@@ -1,3 +1,4 @@
+"""Business logic for authentication, such as user creation and retrieval."""
 from typing import Optional
 from . import models
 
