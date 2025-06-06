@@ -1,0 +1,43 @@
+[project]
+name = "tiny_sales_app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi[standard]>=0.115.12",
+    "tortoise-orm>=0.21.3",
+    "svix-ksuid>=0.6.2",
+    "aiosqlite>=0.20.0",
+    "uvicorn[standard]>=0.30.1",
+    "aerich[toml]>=0.8.0",
+    "python-jose[cryptography]>=3.5.0",
+    "bcrypt>=4.3.0",
+    "typer[all]>=0.12.3", # Added Typer
+]
+
+[project.scripts]
+manage-users = "app.cli.main:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+exclude = ["tests*"]
+
+[tool.aerich]
+tortoise_orm = "app.main.TORTOISE_ORM_CONFIG"
+location = "./migrations"
+
+[dependency-groups]
+dev = ["pytest>=8.4.0", "pytest-asyncio>=1.0.0", "pytest-httpx>=0.21.2"] # httpx is already installed, this adds the pytest plugin
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]
+testpaths = [
+  "app",
+  "tests"
+]
+# Add asyncio mode to avoid PytestDeprecationWarning
+asyncio_mode = "auto"
