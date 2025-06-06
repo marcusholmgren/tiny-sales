@@ -1,3 +1,18 @@
+"""Financial and Inventory Reports API Schemas
+
+This module defines Pydantic models used for various financial and inventory
+reporting endpoints in the API. It includes schemas for:
+
+1. Total Sales Reports
+2. Sales by Product
+3. Sales by Category
+4. Order Status Breakdowns
+5. Low Stock Item Reports
+6. Most Stocked Item Reports
+7. Inventory Value Calculations
+
+Each schema contains appropriate fields for request parameters and response data
+with proper typing and field descriptions where applicable."""
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import datetime

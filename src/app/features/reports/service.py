@@ -1,3 +1,11 @@
+"""
+Reports Service Module
+
+This module provides a collection of functions for generating various business reports
+for the Tiny Sales application. Reports include sales analytics, inventory status,
+and order breakdowns.
+"""
+
 import datetime
 import logging
 from typing import List, Optional
@@ -25,6 +33,26 @@ async def generate_total_sales_report(
     start_date: Optional[datetime.date],
     end_date: Optional[datetime.date]
 ) -> TotalSalesResponse:
+    """
+    Generates a report of total sales statistics.
+    
+    This function calculates the total revenue, item count, and order count for completed and
+    shipped orders within the specified date range. For non-admin users, only their own orders
+    are included.
+    
+    Args:
+        current_user: The authenticated user requesting the report
+        start_date: Optional start date for filtering orders (inclusive)
+        end_date: Optional end date for filtering orders (inclusive)
+        
+    Returns:
+        TotalSalesResponse: An object containing aggregated sales statistics including:
+            - total_revenue: Sum of all items' price_at_purchase * quantity
+            - item_count: Total number of items sold
+            - order_count: Number of orders included in the calculation
+            - start_date: The start date used for filtering (if provided)
+            - end_date: The end date used for filtering (if provided)
+    """
     query = Order.filter(Q(status="shipped") | Q(status="completed")) # Corrected status from previous example
     if start_date:
         query = query.filter(created_at__gte=start_date)
@@ -55,6 +83,28 @@ async def generate_sales_by_product_report(
     start_date: Optional[datetime.date],
     end_date: Optional[datetime.date]
 ) -> SalesByProductResponse:
+    """
+    Generates a sales report broken down by product.
+    
+    This function analyzes order items to calculate sales metrics for each product,
+    including total quantity sold and revenue generated. Results are sorted by revenue 
+    in descending order. For non-admin users, only their own orders are included.
+    
+    Args:
+        current_user: The authenticated user requesting the report
+        start_date: Optional start date for filtering orders (inclusive)
+        end_date: Optional end date for filtering orders (inclusive)
+        
+    Returns:
+        SalesByProductResponse: An object containing:
+            - products: List of ProductSaleInfo objects with sales data per product
+            - start_date: The start date used for filtering (if provided)
+            - end_date: The end date used for filtering (if provided)
+            
+    Note:
+        Each ProductSaleInfo includes product_public_id, product_name,
+        total_quantity_sold, and total_revenue.
+    """
     order_filter = Q(order__status="shipped") | Q(order__status="completed")
     if start_date:
         order_filter &= Q(order__created_at__gte=start_date)
@@ -86,6 +136,29 @@ async def generate_sales_by_category_report(
     start_date: Optional[datetime.date],
     end_date: Optional[datetime.date]
 ) -> SalesByCategoryResponse:
+    """
+    Generates a sales report broken down by product category.
+    
+    This function analyzes order items to calculate sales metrics for each product category,
+    including total quantity sold and revenue generated. Results are sorted by revenue
+    in descending order. For non-admin users, only their own orders are included.
+    Items without a category are grouped under "Uncategorized".
+    
+    Args:
+        current_user: The authenticated user requesting the report
+        start_date: Optional start date for filtering orders (inclusive)
+        end_date: Optional end date for filtering orders (inclusive)
+        
+    Returns:
+        SalesByCategoryResponse: An object containing:
+            - categories: List of CategorySaleInfo objects with sales data per category
+            - start_date: The start date used for filtering (if provided)
+            - end_date: The end date used for filtering (if provided)
+            
+    Note:
+        Each CategorySaleInfo includes category_public_id, category_name,
+        total_quantity_sold, and total_revenue.
+    """
     order_filter = Q(order__status="shipped") | Q(order__status="completed")
     if start_date:
         order_filter &= Q(order__created_at__gte=start_date)
@@ -115,6 +188,24 @@ async def generate_sales_by_category_report(
     return SalesByCategoryResponse(categories=response_items, start_date=start_date, end_date=end_date)
 
 async def generate_order_status_breakdown_report(current_user: AuthUser) -> OrderStatusBreakdownResponse:
+    """
+    Generates a report showing the count of orders by status.
+    
+    This function provides insight into how many orders are in each status
+    (e.g., placed, shipped, completed, cancelled). For non-admin users,
+    only their own orders are included in the counts.
+    
+    Args:
+        current_user: The authenticated user requesting the report
+        
+    Returns:
+        OrderStatusBreakdownResponse: An object containing:
+            - status_breakdown: List of OrderStatusCount objects where each object
+              contains a status name and the count of orders with that status
+    
+    Note:
+        Orders with null status are excluded from the report.
+    """
     query = Order.all()
     if current_user.role != "admin":
         query = query.filter(user_id=current_user.id)
@@ -123,6 +214,25 @@ async def generate_order_status_breakdown_report(current_user: AuthUser) -> Orde
     return OrderStatusBreakdownResponse(status_breakdown=response_items)
 
 async def generate_low_stock_items_report(threshold: int) -> LowStockItemsResponse:
+    """
+    Generates a report of inventory items with stock levels below a specified threshold.
+    
+    This function helps identify products that may need to be reordered soon.
+    It only includes active (non-deleted) items.
+    
+    Args:
+        threshold: The quantity threshold below which items are considered low in stock
+        
+    Returns:
+        LowStockItemsResponse: An object containing:
+            - low_stock_items: List of LowStockItem objects representing products with
+              quantity less than the threshold
+            - threshold: The threshold value used for the report
+            
+    Note:
+        Each LowStockItem includes product_public_id, product_name,
+        current_quantity, and category_name.
+    """
     items = await InventoryItem.filter(quantity__lt=threshold, deleted_at__isnull=True).prefetch_related('category').all()
     response_items = [
         LowStockItem(
@@ -133,6 +243,26 @@ async def generate_low_stock_items_report(threshold: int) -> LowStockItemsRespon
     return LowStockItemsResponse(low_stock_items=response_items, threshold=threshold)
 
 async def generate_most_stocked_items_report(limit: int) -> MostStockedItemsResponse:
+    """
+    Generates a report of inventory items with the highest stock levels.
+    
+    This function identifies products that have the largest quantities in stock,
+    which may indicate potential overstocking issues. It only includes active
+    (non-deleted) items.
+    
+    Args:
+        limit: The maximum number of items to include in the report
+        
+    Returns:
+        MostStockedItemsResponse: An object containing:
+            - most_stocked_items: List of MostStockedItem objects representing
+              products with the highest quantities, sorted in descending order
+            - limit: The maximum number of items requested
+            
+    Note:
+        Each MostStockedItem includes product_public_id, product_name,
+        current_quantity, and category_name.
+    """
     items = await InventoryItem.filter(deleted_at__isnull=True).order_by('-quantity').limit(limit).prefetch_related('category').all()
     response_items = [
         MostStockedItem(
@@ -143,6 +273,25 @@ async def generate_most_stocked_items_report(limit: int) -> MostStockedItemsResp
     return MostStockedItemsResponse(most_stocked_items=response_items, limit=limit)
 
 async def generate_inventory_value_report() -> InventoryValueResponse:
+    """
+    Generates a report of the total monetary value of current inventory.
+    
+    This function calculates the value of each active (non-deleted) inventory item
+    by multiplying its quantity by its current price, and then provides both
+    the overall total and a breakdown by item.
+    
+    Returns:
+        InventoryValueResponse: An object containing:
+            - total_inventory_value: Sum of the value of all inventory items
+            - items_contributing: List of InventoryValueItem objects with detailed
+              information about each item's contribution to the total value
+            - item_count: Total number of inventory items included in the report
+            
+    Note:
+        Each InventoryValueItem includes product_public_id, product_name,
+        current_quantity, current_price, and total_value (quantity * price).
+        If an item has no current_price set, 0.0 is used as a default.
+    """
     inventory_items = await InventoryItem.filter(deleted_at__isnull=True).all()
     total_value = 0.0
     value_items_breakdown = []
