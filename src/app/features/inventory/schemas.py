@@ -1,3 +1,4 @@
+"""Pydantic schemas for inventory items and categories, defining data structures for API requests and responses."""
 from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 import datetime

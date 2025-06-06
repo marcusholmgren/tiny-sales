@@ -1,3 +1,4 @@
+"""Data models for inventory management, including Category and InventoryItem."""
 from tortoise import fields, models
 from ...common.models import TimestampMixin, generate_ksuid
 

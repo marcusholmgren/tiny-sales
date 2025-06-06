@@ -1,3 +1,4 @@
+"""Security-related functions for authentication, including password hashing, token creation, and user retrieval from tokens."""
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Annotated

@@ -1,3 +1,4 @@
+"""API routes for managing inventory items and categories."""
 import datetime
 import logging
 from fastapi import APIRouter, HTTPException, status, Query, Depends

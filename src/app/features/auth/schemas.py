@@ -1,3 +1,4 @@
+"""Pydantic schemas for authentication, defining the structure for request and response data."""
 from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from typing import List, Optional
 import datetime
