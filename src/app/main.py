@@ -3,7 +3,7 @@ import sys
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from tortoise import generate_config
 from tortoise.contrib.fastapi import register_tortoise, tortoise_exception_handlers
 
@@ -156,11 +156,12 @@ async def lifespan(api_app: FastAPI) -> AsyncGenerator[None, None]:
         # db connections closed
 
 @app.get("/")
-async def read_root():
+async def read_root(request: Request):
     """
     Root endpoint for the API.
     """
-    logger.info(f"Root endpoint '/' accessed by {app.client.host if app.client else 'unknown client'}")
+    client_host = request.client.host if request.client else "unknown client"
+    logger.info(f"Root endpoint '/' accessed by {client_host}")
     return {"message": "Welcome to the Tiny Sales API!"}
 
 # Include your routers
