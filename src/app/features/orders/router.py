@@ -107,10 +107,17 @@ async def create_order(
 @router.get("/", response_model=List[OrderPublicSchema])
 async def list_orders(
     current_user: Annotated[AuthUser, Depends(get_current_active_user)],
-    page: int = Query(1, ge=1), size: int = Query(10, ge=1, le=100)
+    page: int = Query(1, ge=1), size: int = Query(10, ge=1, le=100),
+    statuses: Optional[List[str]] = Query(None)
 ):
     offset = (page - 1) * size
     query = Order.all().prefetch_related("user", "items__item", "events").order_by("-created_at")
+
+    if statuses:
+        processed_statuses = [status.strip() for status in statuses if status.strip()]
+        if processed_statuses:
+            query = query.filter(status__in=processed_statuses)
+
     if current_user.role != "admin":
         query = query.filter(user_id=current_user.id)
     orders = await query.offset(offset).limit(size)
