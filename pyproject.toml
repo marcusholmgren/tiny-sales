@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi[standard]>=0.115.12",
+    "fastapi[standard]>=0.115.13",
     "tortoise-orm>=0.21.3",
     "svix-ksuid>=0.6.2",
     "aiosqlite>=0.20.0",
@@ -29,9 +29,17 @@ manage-users = "app.cli.main:app"
 tortoise_orm = "app.main.TORTOISE_ORM_CONFIG"
 location = "./migrations"
 
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = [
+    "src/app/features"
+]
+norecursedirs = ".venv .* build dist *.egg src/app/cli src/app/core src/app/common"
+
 [dependency-groups]
 dev = [
-    "pytest>=8.4.0",
+    "pytest>=8.4.1",
     "pytest-asyncio>=1.0.0",
     "pytest-httpx>=0.21.2",
+    "asgi-lifespan>=2.1.0",
 ] # httpx is already installed, this adds the pytest plugin
