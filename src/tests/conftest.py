@@ -7,6 +7,8 @@ from tortoise.contrib.fastapi import register_tortoise
 from tortoise.contrib.test import MEMORY_SQLITE
 import os
 import sys
+import uuid
+import time
 from pathlib import Path
 
 
@@ -94,9 +96,11 @@ def client(app_for_testing: FastAPI) -> Generator[TestClient, Any, None]:
     This client is function-scoped, so each test gets a fresh client,
     but it operates on the session-scoped app and database.
     """
-    username = "testuser"
+    unique_id = str(uuid.uuid4())[:8]
+    timestamp = int(time.time())
+    username = f"testuser_{unique_id}_{timestamp}"
     password = "testpassword123"
-    email = "testuser@example.com"
+    email = f"testuser_{unique_id}_{timestamp}@example.com"
     with TestClient(app_for_testing) as tc:
         # Register user (ignore if already exists)
         response = tc.post("/api/v1/auth/register", json={
@@ -108,13 +112,15 @@ def client(app_for_testing: FastAPI) -> Generator[TestClient, Any, None]:
         yield tc
 
 @pytest_asyncio.fixture(scope="function")
-async def admin_client(app_for_testing: FastAPI) -> Generator[TestClient, Any, None]:
+async def admin_client(app_for_testing: FastAPI) -> AsyncGenerator[Any, Any]:
     """
     Provides a TestClient authenticated as an admin user.
     """
-    admin_username = "adminfixtureuser"
+    unique_id = str(uuid.uuid4())[:8]
+    timestamp = int(time.time())
+    admin_username = f"adminfixture_{unique_id}_{timestamp}"
     admin_password = "adminpassword123"
-    admin_email = "adminfixtureuser@example.com"
+    admin_email = f"adminfixture_{unique_id}_{timestamp}@example.com"
     hashed_password = get_password_hash(admin_password)
 
     # Create admin user directly in the database
@@ -154,9 +160,11 @@ async def test_user_admin_token(app_for_testing: FastAPI) -> AsyncGenerator[tupl
     Creates an admin user, gets their token, and yields (token, user_object).
     Cleans up the user afterwards.
     """
-    username = "reportsadminuser"
+    unique_id = str(uuid.uuid4())[:8]
+    timestamp = int(time.time())
+    username = f"reportsadmin_{unique_id}_{timestamp}"
     password = "password123" # Standard password for test users
-    email = "reportsadmin@example.com"
+    email = f"reportsadmin_{unique_id}_{timestamp}@example.com"
     hashed_password = get_password_hash(password)
 
     user = await User.create(
@@ -196,9 +204,11 @@ async def test_user_customer_token(app_for_testing: FastAPI) -> AsyncGenerator[t
     Creates a customer user, gets their token, and yields (token, user_object).
     Cleans up the user afterwards.
     """
-    username = "reportscustomeruser"
+    unique_id = str(uuid.uuid4())[:8]
+    timestamp = int(time.time())
+    username = f"reportscustomer_{unique_id}_{timestamp}"
     password = "password123" # Standard password for test users
-    email = "reportscustomer@example.com"
+    email = f"reportscustomer_{unique_id}_{timestamp}@example.com"
     hashed_password = get_password_hash(password)
 
     user = await User.create(

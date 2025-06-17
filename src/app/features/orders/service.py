@@ -178,7 +178,8 @@ async def _to_order_public_schema(order: Order) -> OrderPublicSchema:
     if hasattr(order, 'items'): # Check if items relation is loaded
         # Ensure item (InventoryItem) is loaded through select_related when order.items was fetched
         for item_model in await order.items.all(): # No need for .select_related('item') here if already prefetched
-            inventory_item_model = item_model.item # This is the InventoryItem instance
+            print(f"Processing OrderItem: {item_model.public_id} for InventoryItem: {item_model.item=}")
+            inventory_item_model = await item_model.item # This is the InventoryItem instance
             if not inventory_item_model:
                 # This case should ideally not happen if data is consistent and prefetching is done correctly
                 # Consider logging a warning or raising an error if appropriate

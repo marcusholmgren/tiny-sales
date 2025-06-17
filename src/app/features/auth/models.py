@@ -11,7 +11,7 @@ class User(TimestampMixin):
     role = fields.CharField(max_length=50, default="customer")  # E.g., "customer", "admin"
     is_active = fields.BooleanField(default=True)
 
-    orders: fields.ReverseRelation["app.features.orders.models.Order"]
+    orders: fields.ReverseRelation["Order"]
 
     def __str__(self):
         return f"{self.username} ({self.role})"

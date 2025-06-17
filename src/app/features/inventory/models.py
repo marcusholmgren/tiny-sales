@@ -26,7 +26,7 @@ class InventoryItem(TimestampMixin):
     deleted_at = fields.DatetimeField(null=True, default=None) # For soft delete
 
     # String forward reference for inter-feature relation
-    order_items_relation: fields.ReverseRelation["app.features.orders.models.OrderItem"]
+    order_items_relation: fields.ReverseRelation["OrderItem"]
 
     category: fields.ForeignKeyRelation[Category] = fields.ForeignKeyField(
         "models.Category", related_name="inventory_items", on_delete=fields.SET_NULL, null=True

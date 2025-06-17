@@ -1,7 +1,6 @@
 import datetime
 from tortoise import fields, models
 from ...common.models import TimestampMixin, generate_ksuid
-# from ..auth import models
 
 # Forward references for OrderItem and OrderEvent used in Order
 class Order(TimestampMixin):
@@ -14,7 +13,7 @@ class Order(TimestampMixin):
     delivery_address = fields.TextField()
     status = fields.CharField(max_length=50, default="pending_payment")
 
-    user: fields.ForeignKeyRelation["models.User"] = fields.ForeignKeyField(
+    user: fields.ForeignKeyRelation["User"] = fields.ForeignKeyField(
         "models.User", related_name="orders", on_delete=fields.SET_NULL, null=True
     )
 
@@ -45,7 +44,7 @@ class OrderItem(TimestampMixin):
     order: fields.ForeignKeyRelation[Order] = fields.ForeignKeyField(
         "models.Order", related_name="items", on_delete=fields.CASCADE # Refers to local Order model
     )
-    item: fields.ForeignKeyRelation["models.InventoryItem"] = fields.ForeignKeyField(
+    item: fields.ForeignKeyRelation["InventoryItem"] = fields.ForeignKeyField(
         "models.InventoryItem", related_name="order_items_relation", on_delete=fields.RESTRICT
     )
 
