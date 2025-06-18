@@ -472,7 +472,7 @@ async def test_list_orders_single_status_filter_user(client: TestClient, test_us
     data = response.json()
     order_ids_returned = {order["public_id"] for order in data}
 
-    assert len(data) == 2
+    assert len(data) == 1
     assert order_u1_placed.public_id in order_ids_returned
     assert order_u1_shipped.public_id not in order_ids_returned
     assert data[0]["status"] == "placed"
