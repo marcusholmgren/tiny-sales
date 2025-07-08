@@ -1,5 +1,7 @@
 # Tiny sales
 
+[![Run Pytest](https://github.com/marcusholmgren/tiny-sales/actions/workflows/pytest.yml/badge.svg)](https://github.com/marcusholmgren/tiny-sales/actions/workflows/pytest.yml)
+
 This project is a simple little sales and inventory API system.
 It has inventory management for products.
 And order management for receiving and processing orders.
