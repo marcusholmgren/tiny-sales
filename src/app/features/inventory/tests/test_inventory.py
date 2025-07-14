@@ -1,4 +1,3 @@
-import pytest
 # from fastapi.testclient import TestClient
 # from app.features.inventory.models import InventoryItem, Category
 # from app.features.auth.models import User as AuthUser

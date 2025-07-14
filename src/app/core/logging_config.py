@@ -1,16 +1,20 @@
 import logging
 import sys
 
+
 class NamespaceFilter(logging.Filter):
     def __init__(self, allowed_namespaces=None):
         super().__init__()
-        self.allowed_namespaces = allowed_namespaces if allowed_namespaces is not None else []
+        self.allowed_namespaces = (
+            allowed_namespaces if allowed_namespaces is not None else []
+        )
 
     def filter(self, record):
         if not self.allowed_namespaces:
-            return True # If no namespaces are specified, allow all records
+            return True  # If no namespaces are specified, allow all records
         # Allow record if its name starts with any of the allowed namespaces
         return any(record.name.startswith(ns) for ns in self.allowed_namespaces)
+
 
 log_formatter = logging.Formatter(
     fmt="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
@@ -50,7 +54,6 @@ logging.getLogger("app.features.orders").setLevel(logging.DEBUG)
 # "app.features.orders.router" or "app.services.some_service".
 # These child loggers will inherit levels from their parents (e.g., "app.features.orders")
 # or the application's root logger ("app") if not specifically set.
-
 
 
 # sh = logging.StreamHandler(sys.stdout)

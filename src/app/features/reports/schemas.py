@@ -13,14 +13,21 @@ reporting endpoints in the API. It includes schemas for:
 
 Each schema contains appropriate fields for request parameters and response data
 with proper typing and field descriptions where applicable."""
+
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import datetime
 
+
 # Helper schema for common time period queries
 class TimePeriodQuery(BaseModel):
-    start_date: Optional[datetime.date] = Field(None, description="Start date for the report period (YYYY-MM-DD)")
-    end_date: Optional[datetime.date] = Field(None, description="End date for the report period (YYYY-MM-DD)")
+    start_date: Optional[datetime.date] = Field(
+        None, description="Start date for the report period (YYYY-MM-DD)"
+    )
+    end_date: Optional[datetime.date] = Field(
+        None, description="End date for the report period (YYYY-MM-DD)"
+    )
+
 
 # 1. Total Sales Over Time
 class TotalSalesResponse(BaseModel):
@@ -30,6 +37,7 @@ class TotalSalesResponse(BaseModel):
     start_date: Optional[datetime.date] = None
     end_date: Optional[datetime.date] = None
 
+
 # 2. Sales by Product
 class ProductSaleInfo(BaseModel):
     product_public_id: str
@@ -37,10 +45,12 @@ class ProductSaleInfo(BaseModel):
     total_quantity_sold: int
     total_revenue: float
 
+
 class SalesByProductResponse(BaseModel):
     products: List[ProductSaleInfo]
     start_date: Optional[datetime.date] = None
     end_date: Optional[datetime.date] = None
+
 
 # 3. Sales by Category
 class CategorySaleInfo(BaseModel):
@@ -49,18 +59,22 @@ class CategorySaleInfo(BaseModel):
     total_quantity_sold: int
     total_revenue: float
 
+
 class SalesByCategoryResponse(BaseModel):
     categories: List[CategorySaleInfo]
     start_date: Optional[datetime.date] = None
     end_date: Optional[datetime.date] = None
+
 
 # 4. Order Status Breakdown
 class OrderStatusCount(BaseModel):
     status: str
     count: int
 
+
 class OrderStatusBreakdownResponse(BaseModel):
     status_breakdown: List[OrderStatusCount]
+
 
 # 5. Low Stock Items
 class LowStockItem(BaseModel):
@@ -69,9 +83,11 @@ class LowStockItem(BaseModel):
     current_quantity: int
     category_name: Optional[str] = None
 
+
 class LowStockItemsResponse(BaseModel):
     low_stock_items: List[LowStockItem]
     threshold: int
+
 
 # 6. Most Stocked Items
 class MostStockedItem(BaseModel):
@@ -80,9 +96,11 @@ class MostStockedItem(BaseModel):
     current_quantity: int
     category_name: Optional[str] = None
 
+
 class MostStockedItemsResponse(BaseModel):
     most_stocked_items: List[MostStockedItem]
     limit: int
+
 
 # 7. Inventory Value
 class InventoryValueItem(BaseModel):
@@ -91,6 +109,7 @@ class InventoryValueItem(BaseModel):
     current_quantity: int
     current_price: float
     total_value: float
+
 
 class InventoryValueResponse(BaseModel):
     total_inventory_value: float
