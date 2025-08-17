@@ -31,10 +31,8 @@ location = "./migrations"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
-testpaths = [
-    "src/app/features"
-]
-norecursedirs = ".venv .* build dist *.egg src/app/cli src/app/core src/app/common"
+
+
 
 [dependency-groups]
 dev = [
