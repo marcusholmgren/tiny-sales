@@ -21,7 +21,7 @@ cd backend/
 
 Start development API
 ```bash
-uv run fastapi dev
+uv run fastapi dev src/app/main.py
 ```
 
 ## Database migrations
@@ -48,6 +48,25 @@ List all migrations
 uv run aerich history
 ```
 
+## Test database connection
+
+You can test the database connection with the CLI command:
+```bash
+uv run src/app/cli/main.py test-db-connection
+```
+It will report if the connection is successful and how many users are in the database.
+
+
+## Create an admin user
+
+│ *  --username        TEXT  Username for the new admin. [default: None] [required]                                                                                           │
+│ *  --email           TEXT  Email for the new admin. [default: None] [required]                                                                                              │
+│ *  --password        TEXT  Password for the new admin. [default: None] [required] 
+
+You can create an admin user with the CLI command:
+```bash
+uv run src/app/cli/main.py create-admin --username admin --email admin@test.com --password admin123
+```
 
 ## Technology
 
