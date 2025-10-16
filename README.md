@@ -1,10 +1,12 @@
-# Tiny sales
+# Tiny Sales
 
 [![Run Pytest](https://github.com/marcusholmgren/tiny-sales/actions/workflows/pytest.yml/badge.svg)](https://github.com/marcusholmgren/tiny-sales/actions/workflows/pytest.yml)
 
-This project is a simple little sales and inventory API system.
-It has inventory management for products.
-And order management for receiving and processing orders.
+## Background
+
+This project is a simple sales and inventory API system designed to manage products, orders, and user authentication. It serves as a lightweight solution for small-scale operations, providing essential features for inventory tracking and order processing.
+
+The system is built with a modern Python stack, featuring FastAPI for the web framework, Tortoise ORM for asynchronous database interaction, and `uv` for dependency management.
 
 ## Features
 
@@ -14,24 +16,27 @@ And order management for receiving and processing orders.
 
 ## Run
 
-Navigate into the `backend` folder to run the API
-```bash
-cd backend/
-```
+To run the development API server, use the following command:
 
-Start development API
 ```bash
 uv run fastapi dev src/app/main.py
 ```
 
-## Database migrations
+The API will be accessible at `http://127.0.0.1:8000`.
 
-This project uses Aerich for database migrations
+## Database Migrations
 
-Create initial database migration
+This project uses [Aerich](https://tortoise-orm.readthedocs.io/en/latest/aerich.html) for database migrations, which works with Tortoise ORM.
+
+### Initialize the Database
+
+Before running migrations for the first time, you need to initialize the database and the Aerich migration environment.
+
+Create initial database migration:
 ```bash
 uv run aerich init-db
 ```
+This command creates the database file (if it doesn't exist) and the migration directory.
 
 Create a new database migration
 ```bash

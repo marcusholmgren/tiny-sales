@@ -37,6 +37,11 @@ async def create_inventory_item(
     item_in: InventoryItemCreate,
     current_admin: Annotated[AuthUser, Depends(get_current_active_admin_user)],
 ):
+    """
+    Creates a new inventory item.
+
+    Requires admin privileges.
+    """
     return await service.create_inventory_item(item_in)
 
 
@@ -53,6 +58,11 @@ async def list_inventory_items(
         None, description="Public ID of the category to filter by"
     ),
 ):
+    """
+    Retrieves a paginated list of active inventory items.
+
+    Can be filtered by category.
+    """
     return await service.list_inventory_items(page, size, category_public_id)
 
 
@@ -63,6 +73,9 @@ async def list_inventory_items(
     tags=["Inventory"],
 )
 async def get_inventory_item(item_public_id: str):
+    """
+    Retrieves a single inventory item by its public ID.
+    """
     return await service.get_inventory_item(item_public_id)
 
 
@@ -77,6 +90,11 @@ async def update_inventory_item(
     item_in: InventoryItemUpdate,
     current_admin: Annotated[AuthUser, Depends(get_current_active_admin_user)],
 ):
+    """
+    Updates an existing inventory item.
+
+    Requires admin privileges.
+    """
     return await service.update_inventory_item(item_public_id, item_in)
 
 
@@ -90,6 +108,11 @@ async def delete_inventory_item(
     item_public_id: str,
     current_admin: Annotated[AuthUser, Depends(get_current_active_admin_user)],
 ):
+    """
+    Soft deletes an inventory item.
+
+    Requires admin privileges.
+    """
     await service.delete_inventory_item(item_public_id)
     return None
 
@@ -106,6 +129,11 @@ async def create_category(
     category_in: CategoryCreate,
     current_admin: Annotated[AuthUser, Depends(get_current_active_admin_user)],
 ):
+    """
+    Creates a new category.
+
+    Requires admin privileges.
+    """
     return await service.create_category(category_in)
 
 
@@ -116,6 +144,9 @@ async def create_category(
     tags=["Categories"],
 )
 async def list_categories():
+    """
+    Retrieves a list of all categories.
+    """
     return await service.list_categories()
 
 
@@ -126,6 +157,9 @@ async def list_categories():
     tags=["Categories"],
 )
 async def get_category(category_public_id: str):
+    """
+    Retrieves a single category by its public ID.
+    """
     return await service.get_category(category_public_id)
 
 
@@ -140,6 +174,11 @@ async def update_category(
     category_in: CategoryUpdate,
     current_admin: Annotated[AuthUser, Depends(get_current_active_admin_user)],
 ):
+    """
+    Updates an existing category.
+
+    Requires admin privileges.
+    """
     return await service.update_category(category_public_id, category_in)
 
 
@@ -153,5 +192,10 @@ async def delete_category(
     category_public_id: str,
     current_admin: Annotated[AuthUser, Depends(get_current_active_admin_user)],
 ):
+    """
+    Deletes a category.
+
+    Requires admin privileges.
+    """
     await service.delete_category(category_public_id)
     return None

@@ -17,6 +17,9 @@ router = APIRouter(tags=["Authentication"], prefix="/auth")
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ):
+    """
+    Authenticates a user and returns an access token.
+    """
     user = await auth_service.get_user_by_username(username=form_data.username)
     if not user or not auth_security.verify_password(
         form_data.password, user.hashed_password
@@ -41,6 +44,9 @@ async def login_for_access_token(
     status_code=status.HTTP_201_CREATED,
 )
 async def register_user(user_in: schemas.UserCreate):
+    """
+    Registers a new user.
+    """
     existing_user_by_username = await auth_service.get_user_by_username(
         username=user_in.username
     )

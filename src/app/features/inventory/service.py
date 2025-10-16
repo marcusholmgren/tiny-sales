@@ -54,18 +54,11 @@ async def create_inventory_item(item_in: InventoryItemCreate) -> InventoryItemRe
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Category with public_id {category_public_id} not found",
             )
-    try:
-        inventory_item = await InventoryItem.create(
-            **item_data, category=category_instance
-        )
-        await inventory_item.fetch_related("category")
-        return _to_inventory_response(inventory_item)
-    except Exception as e:
-        logger.error(f"Error creating inventory item: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create inventory item.",
-        )
+    inventory_item = await InventoryItem.create(
+        **item_data, category=category_instance
+    )
+    await inventory_item.fetch_related("category")
+    return _to_inventory_response(inventory_item)
 
 
 async def list_inventory_items(
@@ -155,18 +148,18 @@ async def update_inventory_item(
             status_code=status.HTTP_400_BAD_REQUEST, detail="No fields for update"
         )
 
-    category_public_id = update_data.pop("category_id", "NOT_SET")
-    if category_public_id != "NOT_SET":
-        if category_public_id is None:
-            inventory_item.category = None
-        else:
-            cat = await Category.get_or_none(public_id=category_public_id)
-            if not cat:
+    if "category_id" in update_data:
+        category_public_id = update_data.pop("category_id")
+        if category_public_id:
+            category = await Category.get_or_none(public_id=category_public_id)
+            if not category:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Category {category_public_id} not found",
+                    detail=f"Category with public_id {category_public_id} not found",
                 )
-            inventory_item.category = cat
+            inventory_item.category = category
+        else:
+            inventory_item.category = None
 
     for key, value in update_data.items():
         setattr(inventory_item, key, value)
@@ -210,20 +203,14 @@ async def create_category(category_in: CategoryCreate) -> CategoryResponse:
     Returns:
         The created category.
     """
-    try:
-        category = await Category.create(**category_in.model_dump())
-        return _to_category_response(category)
-    except Exception as e:
-        logger.error(f"Error creating category: {e}", exc_info=True)
-        if "UNIQUE constraint failed" in str(e):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Category name '{category_in.name}' already exists.",
-            )
+    existing_category = await Category.get_or_none(name=category_in.name)
+    if existing_category:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create category.",
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Category name '{category_in.name}' already exists.",
         )
+    category = await Category.create(**category_in.model_dump())
+    return _to_category_response(category)
 
 
 async def list_categories() -> List[CategoryResponse]:
