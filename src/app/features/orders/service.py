@@ -88,31 +88,7 @@ async def create_new_order(
             user=current_user,
             using_db=conn,
         )
-        for item_data in order_data.items:
-            inventory_item = await InventoryItem.get_or_none(
-                public_id=item_data.product_public_id, using_db=conn
-            ).select_for_update()
-            if not inventory_item:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Item {item_data.product_public_id} not found.",
-                )
-            if inventory_item.quantity < item_data.quantity:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Not enough stock for {inventory_item.name}.",
-                )
-
-            inventory_item.quantity -= item_data.quantity
-            await inventory_item.save(using_db=conn, update_fields=["quantity"])
-            await OrderItem.create(
-                public_id=generate_ksuid(),
-                order=order,
-                item_id=inventory_item.id,
-                quantity=item_data.quantity,
-                price_at_purchase=item_data.price_at_purchase,
-                using_db=conn,
-            )
+        await _process_order_items(order, order_data.items, conn)
         await OrderEvent.create(
             public_id=generate_ksuid(),
             order=order,
@@ -239,6 +215,33 @@ async def cancel_existing_order(
     return full_order_after_cancel
 
 
+async def _process_order_items(order, items, conn):
+    for item_data in items:
+        inventory_item = await InventoryItem.get_or_none(
+            public_id=item_data.product_public_id, using_db=conn
+        ).select_for_update()
+        if not inventory_item:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Item {item_data.product_public_id} not found.",
+            )
+        if inventory_item.quantity < item_data.quantity:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Not enough stock for {inventory_item.name}.",
+            )
+
+        inventory_item.quantity -= item_data.quantity
+        await inventory_item.save(using_db=conn, update_fields=["quantity"])
+        await OrderItem.create(
+            public_id=generate_ksuid(),
+            order=order,
+            item_id=inventory_item.id,
+            quantity=item_data.quantity,
+            price_at_purchase=item_data.price_at_purchase,
+            using_db=conn,
+        )
+
 async def _to_order_public_schema(order: Order) -> OrderPublicSchema:
     # Ensure related fields are prefetched before calling this
     user_resp = (
@@ -247,33 +250,15 @@ async def _to_order_public_schema(order: Order) -> OrderPublicSchema:
         else None
     )
 
-    items_resp = []
-    if hasattr(order, "items"):  # Check if items relation is loaded
-        # Ensure item (InventoryItem) is loaded through select_related when order.items was fetched
-        for item_model in (
-            await order.items.all()
-        ):  # No need for .select_related('item') here if already prefetched
-            print(
-                f"Processing OrderItem: {item_model.public_id} for InventoryItem: {item_model.item=}"
-            )
-            inventory_item_model = (
-                await item_model.item
-            )  # This is the InventoryItem instance
-            if not inventory_item_model:
-                # This case should ideally not happen if data is consistent and prefetching is done correctly
-                # Consider logging a warning or raising an error if appropriate
-                # For now, we'll skip this item or handle as per application's error strategy
-                continue  # Or raise an error
-
-            items_resp.append(
-                OrderItemPublicSchema(
-                    public_id=item_model.public_id,
-                    product_public_id=inventory_item_model.public_id,  # Get public_id from related InventoryItem
-                    quantity=item_model.quantity,
-                    price_at_purchase=item_model.price_at_purchase,
-                    # product_name=inventory_item_model.name # Example: if you want to add product name
-                )
-            )
+    items_resp = [
+        OrderItemPublicSchema(
+            public_id=item.public_id,
+            product_public_id=item.item.public_id,
+            quantity=item.quantity,
+            price_at_purchase=item.price_at_purchase,
+        )
+        for item in order.items
+    ]
 
     events_resp = []
     if hasattr(order, "events"):  # Check if events relation is loaded

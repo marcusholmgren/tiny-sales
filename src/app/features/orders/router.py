@@ -49,6 +49,11 @@ async def create_order(
     order_data: OrderCreateSchema,
     current_user: Annotated[AuthUser, Depends(get_current_active_user)],
 ):
+    """
+    Creates a new order.
+
+    Requires an authenticated user.
+    """
     # The core order creation logic is now in the service layer
     new_order = await create_new_order(order_data, current_user)
 
@@ -63,6 +68,11 @@ async def list_orders(
     size: int = Query(10, ge=1, le=100),
     statuses: Optional[List[str]] = Query(None),
 ):
+    """
+    Lists all orders for the current user.
+
+    Admins can see all orders.
+    """
     orders_list = await get_all_orders(current_user, page, size, statuses)
     return [await _to_order_public_schema(order) for order in orders_list]
 
@@ -72,6 +82,9 @@ async def get_order(
     order_public_id: str,
     current_user: Annotated[AuthUser, Depends(get_current_active_user)],
 ):
+    """
+    Retrieves a single order by its public ID.
+    """
     order = await get_order_by_public_id(order_public_id, current_user)
     return await _to_order_public_schema(order)
 
@@ -84,6 +97,11 @@ async def ship_order(
     ],  # AuthZ handled by Depends
     ship_data: Optional[OrderShipRequestSchema] = None,
 ):
+    """
+    Marks an order as shipped.
+
+    Requires admin privileges.
+    """
     shipped_order = await ship_existing_order(order_public_id, ship_data)
     return await _to_order_public_schema(shipped_order)
 
@@ -96,5 +114,10 @@ async def cancel_order(
     ],  # AuthZ handled by Depends
     cancel_data: Optional[OrderCancelRequestSchema] = None,
 ):
+    """
+    Cancels an order.
+
+    Requires admin privileges.
+    """
     cancelled_order = await cancel_existing_order(order_public_id, cancel_data)
     return await _to_order_public_schema(cancelled_order)
