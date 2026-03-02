@@ -219,6 +219,7 @@ Thumbs.db
 # dist/ already exists
 # *.egg-info/ already exists
 *.egg
+._*
 
 # Notebook checkpoints
 # .ipynb_checkpoints/ already exists
