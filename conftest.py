@@ -19,6 +19,7 @@ Key Fixtures:
 - `test_user_customer_token`: Creates a customer user and returns their auth token and user object.
 """
 
+import os
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Generator
 
@@ -107,15 +108,18 @@ async def initialize_test_db() -> AsyncGenerator[None, None]:
     This async, autouse fixture creates a fresh in-memory database and schema
     for each test and tears it down afterwards.
     """
+    db_file = "test_db.sqlite3"
+    if os.path.exists(db_file):
+        os.remove(db_file)
+
     test_db_config = {
-        "connections": {"default": "sqlite://:memory:"},
+        "connections": {"default": f"sqlite://{db_file}"},
         "apps": {
             "models": {
                 "models": [
                     "app.features.auth.models",
                     "app.features.inventory.models",
                     "app.features.orders.models",
-                    "aerich.models",
                 ],
                 "default_connection": "default",
             }
@@ -131,6 +135,11 @@ async def initialize_test_db() -> AsyncGenerator[None, None]:
     yield
 
     await Tortoise.close_connections()
+    if os.path.exists(db_file):
+        try:
+            os.remove(db_file)
+        except PermissionError:
+            pass
 
 
 @pytest.fixture(scope="function")

@@ -24,7 +24,6 @@ TORTOISE_ORM_CONFIG = {
                 "app.features.auth.models",
                 "app.features.inventory.models",
                 "app.features.orders.models",
-                "aerich.models",  # For Aerich migrations
             ],
             "default_connection": "default",
         }
