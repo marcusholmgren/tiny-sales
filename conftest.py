@@ -12,21 +12,18 @@ Key Fixtures:
 - `initialize_test_db`: (autouse) Creates a fresh DB schema for each test.
 - `app_for_testing`: Provides the FastAPI application instance with its production
   lifespan disabled to allow `initialize_test_db` to manage the test DB.
-- `client`: Provides a non-authenticated TestClient.
-- `admin_client`: Provides a TestClient authenticated as a new admin user.
-- `customer_client`: Provides a TestClient authenticated as a new customer user.
-- `test_user_admin_token`: Creates an admin user and returns their auth token and user object.
-- `test_user_customer_token`: Creates a customer user and returns their auth token and user object.
+- `client`: Provides a non-authenticated AsyncClient.
+- `admin_client`: Provides an AsyncClient authenticated as a new admin user.
+- `customer_client`: Provides an AsyncClient authenticated as a new customer user.
 """
 
-import os
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Generator
+from typing import Any, AsyncGenerator
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 from tortoise import Tortoise
 
 from app.features.auth.models import User
@@ -108,12 +105,8 @@ async def initialize_test_db() -> AsyncGenerator[None, None]:
     This async, autouse fixture creates a fresh in-memory database and schema
     for each test and tears it down afterwards.
     """
-    db_file = "test_db.sqlite3"
-    if os.path.exists(db_file):
-        os.remove(db_file)
-
     test_db_config = {
-        "connections": {"default": f"sqlite://{db_file}"},
+        "connections": {"default": "sqlite://:memory:"},
         "apps": {
             "models": {
                 "models": [
@@ -135,15 +128,10 @@ async def initialize_test_db() -> AsyncGenerator[None, None]:
     yield
 
     await Tortoise.close_connections()
-    if os.path.exists(db_file):
-        try:
-            os.remove(db_file)
-        except PermissionError:
-            pass
 
 
-@pytest.fixture(scope="function")
-def app_for_testing() -> Generator[FastAPI, Any, None]:
+@pytest_asyncio.fixture(scope="function")
+async def app_for_testing() -> AsyncGenerator[FastAPI, None]:
     """
     Provides a FastAPI application instance for testing, with its
     production lifespan manager disabled to allow the test DB fixture
@@ -163,34 +151,29 @@ def app_for_testing() -> Generator[FastAPI, Any, None]:
     actual_app.router.lifespan_context = original_lifespan
 
 
-@pytest.fixture(scope="function")
-def client(app_for_testing: FastAPI) -> Generator[TestClient, Any, None]:
+@pytest_asyncio.fixture(scope="function")
+async def client(app_for_testing: FastAPI) -> AsyncGenerator[AsyncClient, None]:
     """
-    Provides a non-authenticated starlette TestClient.
+    Provides a non-authenticated httpx AsyncClient.
     """
-    with TestClient(app_for_testing) as tc:
-        yield tc
+    async with AsyncClient(
+        transport=ASGITransport(app=app_for_testing), base_url="http://test"
+    ) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
-async def admin_client(app_for_testing: FastAPI) -> AsyncGenerator[TestClient, Any]:
+async def admin_client(app_for_testing: FastAPI) -> AsyncGenerator[AsyncClient, None]:
     """
-    Provides a TestClient authenticated as a new admin user.
-    Cleans up the user afterwards.
+    Provides an AsyncClient authenticated as a new admin user.
     """
     admin_username = "adminfixture"
     admin_password = "adminpassword123"
-    # hashed_password = get_password_hash(admin_password)
 
-    # admin_user = await User.create(
-    #     username=admin_username,
-    #     email="adminfixture@example.com",
-    #     hashed_password=hashed_password,
-    #     role="admin",
-    # )
-
-    with TestClient(app_for_testing) as tc:
-        response = tc.post(
+    async with AsyncClient(
+        transport=ASGITransport(app=app_for_testing), base_url="http://test"
+    ) as ac:
+        response = await ac.post(
             "/api/v1/auth/token",
             data={"username": admin_username, "password": admin_password},
         )
@@ -200,31 +183,22 @@ async def admin_client(app_for_testing: FastAPI) -> AsyncGenerator[TestClient, A
         token_data = response.json()
         auth_token = token_data["access_token"]
 
-        tc.headers = {"Authorization": f"Bearer {auth_token}"}
-        yield tc
-
-    # await admin_user.delete()
+        ac.headers.update({"Authorization": f"Bearer {auth_token}"})
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
-async def customer_client(app_for_testing: FastAPI) -> AsyncGenerator[TestClient, Any]:
+async def customer_client(app_for_testing: FastAPI) -> AsyncGenerator[AsyncClient, None]:
     """
-    Provides a TestClient authenticated as a new customer user.
-    Cleans up the user afterwards.
+    Provides an AsyncClient authenticated as a new customer user.
     """
     customer_username = "customerfixture"
     customer_password = "customerpassword123"
-    # hashed_password = get_password_hash(customer_password)
 
-    # customer_user = await User.create(
-    #     username=customer_username,
-    #     email="customerfixture@example.com",
-    #     hashed_password=hashed_password,
-    #     role="customer",
-    # )
-
-    with TestClient(app_for_testing) as tc:
-        response = tc.post(
+    async with AsyncClient(
+        transport=ASGITransport(app=app_for_testing), base_url="http://test"
+    ) as ac:
+        response = await ac.post(
             "/api/v1/auth/token",
             data={"username": customer_username, "password": customer_password},
         )
@@ -234,10 +208,8 @@ async def customer_client(app_for_testing: FastAPI) -> AsyncGenerator[TestClient
         token_data = response.json()
         auth_token = token_data["access_token"]
 
-        tc.headers = {"Authorization": f"Bearer {auth_token}"}
-        yield tc
-
-    # await customer_user.delete()
+        ac.headers.update({"Authorization": f"Bearer {auth_token}"})
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -246,32 +218,22 @@ async def test_user_admin_token(
 ) -> AsyncGenerator[tuple[str, User], Any]:
     """
     Creates an admin user, gets their token, and yields (token, user_object).
-    Cleans up the user afterwards.
     """
     username = "reportsadmin"
     password = "password123"
-    # hashed_password = get_password_hash(password)
-
-    # user = await User.create(
-    #     username=username,
-    #     email="reportsadmin@example.com",
-    #     hashed_password=hashed_password,
-    #     role="admin",
-    # )
     user = await User.get(username=username)
 
-    with TestClient(app_for_testing) as tc:
-        response = tc.post(
+    async with AsyncClient(
+        transport=ASGITransport(app=app_for_testing), base_url="http://test"
+    ) as ac:
+        response = await ac.post(
             "/api/v1/auth/token", data={"username": username, "password": password}
         )
         if response.status_code != 200:
-            await user.delete()
             raise Exception(f"Could not get token for {username}")
         auth_token = response.json()["access_token"]
 
     yield auth_token, user
-
-    # await user.delete()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -280,29 +242,19 @@ async def test_user_customer_token(
 ) -> AsyncGenerator[tuple[str, User], Any]:
     """
     Creates a customer user, gets their token, and yields (token, user_object).
-    Cleans up the user afterwards.
     """
     username = "reportscustomer"
     password = "password123"
-    # hashed_password = get_password_hash(password)
-
-    # user = await User.create(
-    #     username=username,
-    #     email="reportscustomer@example.com",
-    #     hashed_password=hashed_password,
-    #     role="customer",
-    # )
     user = await User.get(username=username)
 
-    with TestClient(app_for_testing) as tc:
-        response = tc.post(
+    async with AsyncClient(
+        transport=ASGITransport(app=app_for_testing), base_url="http://test"
+    ) as ac:
+        response = await ac.post(
             "/api/v1/auth/token", data={"username": username, "password": password}
         )
         if response.status_code != 200:
-            await user.delete()
             raise Exception(f"Could not get token for {username}")
         auth_token = response.json()["access_token"]
 
     yield auth_token, user
-
-    # await user.delete()

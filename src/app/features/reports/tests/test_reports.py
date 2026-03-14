@@ -1,8 +1,7 @@
 # backend/tests/test_reports.py
 import pytest
 
-# from httpx import AsyncClient # No longer directly used in signatures
-from fastapi.testclient import TestClient  # Added for type hinting
+from httpx import AsyncClient  # Added for type hinting
 from fastapi import status
 import datetime
 
@@ -20,7 +19,7 @@ def get_auth_headers(token: str):
 
 @pytest.mark.asyncio
 async def test_get_total_sales_report_as_admin(
-    admin_client: TestClient,
+    admin_client: AsyncClient,
     test_user_admin_token: tuple[str, User],
     test_user_customer_token: tuple[str, User],
 ):
@@ -101,7 +100,7 @@ async def test_get_total_sales_report_as_admin(
     )
 
     # Test as Admin (sees all completed/shipped orders)
-    response_admin = admin_client.get(
+    response_admin = await admin_client.get(
         "/api/v1/reports/sales/total", headers=headers_admin
     )
     assert response_admin.status_code == status.HTTP_200_OK
@@ -111,7 +110,7 @@ async def test_get_total_sales_report_as_admin(
     assert data_admin["order_count"] == 2
 
     # Test as Customer (sees only their own completed/shipped orders)
-    response_customer = admin_client.get(
+    response_customer = await admin_client.get(
         "/api/v1/reports/sales/total", headers=headers_customer
     )
     assert response_customer.status_code == status.HTTP_200_OK
@@ -131,7 +130,7 @@ async def test_get_total_sales_report_as_admin(
 
     start_date = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
     end_date = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
-    response_admin_filtered = admin_client.get(  # Changed async_client to client
+    response_admin_filtered = await admin_client.get(  # Changed async_client to client
         f"/api/v1/reports/sales/total?start_date={start_date}&end_date={end_date}",
         headers=headers_admin,
     )
@@ -144,7 +143,7 @@ async def test_get_total_sales_report_as_admin(
 
 @pytest.mark.asyncio
 async def test_get_sales_by_product_report(
-    admin_client: TestClient, test_user_admin_token: tuple[str, User]
+    admin_client: AsyncClient, test_user_admin_token: tuple[str, User]
 ):  # Changed async_client
     admin_token, admin_user = test_user_admin_token
     headers = get_auth_headers(admin_token)
@@ -203,7 +202,7 @@ async def test_get_sales_by_product_report(
         order=order2, item=item_a, quantity=1, price_at_purchase=11.0
     )  # 11 for A in order2
 
-    response = admin_client.get("/api/v1/reports/sales/by-product", headers=headers)
+    response = await admin_client.get("/api/v1/reports/sales/by-product", headers=headers)
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
 
@@ -246,7 +245,7 @@ async def test_get_sales_by_product_report(
 
 @pytest.mark.asyncio
 async def test_get_sales_by_category_report(
-    admin_client: TestClient, test_user_admin_token: tuple[str, User]
+    admin_client: AsyncClient, test_user_admin_token: tuple[str, User]
 ):  # Changed async_client
     admin_token, admin_user = test_user_admin_token
     headers = get_auth_headers(admin_token)
@@ -289,7 +288,7 @@ async def test_get_sales_by_category_report(
     )
     await OrderItem.create(order=order, item=item_b, quantity=3, price_at_purchase=15.0)
 
-    response = admin_client.get("/api/v1/reports/sales/by-category", headers=headers)
+    response = await admin_client.get("/api/v1/reports/sales/by-category", headers=headers)
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
 
@@ -333,7 +332,7 @@ async def test_get_sales_by_category_report(
 
 @pytest.mark.asyncio
 async def test_get_order_status_breakdown_report(
-    admin_client: TestClient, test_user_admin_token: tuple[str, User]
+    admin_client: AsyncClient, test_user_admin_token: tuple[str, User]
 ):  # Changed async_client
     admin_token, admin_user = test_user_admin_token
     headers = get_auth_headers(admin_token)
@@ -386,7 +385,7 @@ async def test_get_order_status_breakdown_report(
         contact_email="p1_osbr_reportsadmin@example.com", defaults=defaults_p1
     )
 
-    response = admin_client.get(
+    response = await admin_client.get(
         "/api/v1/reports/orders/status-breakdown", headers=headers
     )
     assert response.status_code == status.HTTP_200_OK
@@ -400,7 +399,7 @@ async def test_get_order_status_breakdown_report(
 
 @pytest.mark.asyncio
 async def test_get_low_stock_items_report(
-    admin_client: TestClient, test_user_admin_token: tuple[str, User]
+    admin_client: AsyncClient, test_user_admin_token: tuple[str, User]
 ):  # Changed async_client
     admin_token, _ = test_user_admin_token
     headers = get_auth_headers(admin_token)
@@ -419,7 +418,7 @@ async def test_get_low_stock_items_report(
         defaults={"quantity": 2, "current_price": 10.0, "category_id": cat.id},
     )
 
-    response = admin_client.get(
+    response = await admin_client.get(
         "/api/v1/reports/inventory/low-stock?threshold=10", headers=headers
     )
     assert response.status_code == status.HTTP_200_OK
@@ -443,7 +442,7 @@ async def test_get_low_stock_items_report(
 
 @pytest.mark.asyncio
 async def test_get_most_stocked_items_report(
-    admin_client: TestClient, test_user_admin_token: tuple[str, User]
+    admin_client: AsyncClient, test_user_admin_token: tuple[str, User]
 ):  # Changed async_client
     admin_token, _ = test_user_admin_token
     headers = get_auth_headers(admin_token)
@@ -462,7 +461,7 @@ async def test_get_most_stocked_items_report(
         defaults={"quantity": 5000, "current_price": 1.0, "category_id": cat.id},
     )
 
-    response = admin_client.get(
+    response = await admin_client.get(
         "/api/v1/reports/inventory/most-stocked?limit=2", headers=headers
     )
     assert response.status_code == status.HTTP_200_OK
@@ -480,7 +479,7 @@ async def test_get_most_stocked_items_report(
 
 @pytest.mark.asyncio
 async def test_get_inventory_value_report(
-    admin_client: TestClient, test_user_admin_token: tuple[str, User]
+    admin_client: AsyncClient, test_user_admin_token: tuple[str, User]
 ):  # Changed async_client
     admin_token, _ = test_user_admin_token
     headers = get_auth_headers(admin_token)
@@ -503,7 +502,7 @@ async def test_get_inventory_value_report(
         defaults={"quantity": 0, "current_price": 100.0, "category_id": cat.id},
     )
 
-    response = admin_client.get("/api/v1/reports/inventory/value", headers=headers)
+    response = await admin_client.get("/api/v1/reports/inventory/value", headers=headers)
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
 
@@ -555,7 +554,7 @@ async def test_get_inventory_value_report(
 
 
 @pytest.mark.asyncio
-async def test_report_auth_required(client: TestClient):  # Changed async_client
+async def test_report_auth_required(client: AsyncClient):  # Changed async_client
     endpoints = [
         "/api/v1/reports/sales/total",
         "/api/v1/reports/sales/by-product",
@@ -566,7 +565,7 @@ async def test_report_auth_required(client: TestClient):  # Changed async_client
         "/api/v1/reports/inventory/value",
     ]
     for endpoint in endpoints:
-        response = client.get(endpoint)  # Corrected: no await, uses client
+        response = await client.get(endpoint)  # Corrected: no await, uses client
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 

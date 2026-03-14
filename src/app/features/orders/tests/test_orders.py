@@ -1,5 +1,5 @@
 import pytest
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 # Assuming models and schemas might be needed for direct assertions or setup
 from app.features.orders.models import Order
@@ -24,19 +24,19 @@ async def setup_test_inventory_item():
 
 
 async def get_auth_token(
-    client: TestClient,
+    client: AsyncClient,
     username: str = "customerfixture",
     password: str = "customerpassword123",
 ) -> str:
     # Get token
-    response = client.post(
+    response = await client.post(
         "/api/v1/auth/token", data={"username": username, "password": password}
     )
     assert response.status_code == 200, response.text
     return response.json()["access_token"]
 
 
-async def test_create_order_success(client: TestClient):  # Changed from TestClient
+async def test_create_order_success(client: AsyncClient):  # Changed from AsyncClient
     # Setup: Ensure an inventory item exists
     inventory_item = await setup_test_inventory_item()
     token = await get_auth_token(client)
@@ -53,7 +53,7 @@ async def test_create_order_success(client: TestClient):  # Changed from TestCli
             }
         ],
     }
-    response = client.post(
+    response = await client.post(
         "/api/v1/orders/",
         json=order_payload,
         headers={"Authorization": f"Bearer {token}"},
@@ -82,7 +82,7 @@ async def test_create_order_success(client: TestClient):  # Changed from TestCli
 
 
 async def create_order_for_test(
-    client: TestClient,
+    client: AsyncClient,
     inventory_item_public_id: str,
     contact_name: str = "Test Order User",
 ) -> OrderPublicSchema:
@@ -100,7 +100,7 @@ async def create_order_for_test(
         ],
     }
     token = await get_auth_token(client)
-    response = client.post(
+    response = await client.post(
         "/api/v1/orders/",
         json=order_payload,
         headers={"Authorization": f"Bearer {token}"},
@@ -110,7 +110,7 @@ async def create_order_for_test(
     return OrderPublicSchema(**response.json())
 
 
-async def test_create_order_no_items(client: TestClient):
+async def test_create_order_no_items(client: AsyncClient):
     order_payload = {
         "contact_name": "Test User No Items",
         "contact_email": "testnoitems@example.com",
@@ -118,7 +118,7 @@ async def test_create_order_no_items(client: TestClient):
         "items": [],  # Empty items list
     }
     token = await get_auth_token(client)
-    response = client.post(
+    response = await client.post(
         "/api/v1/orders/",
         json=order_payload,
         headers={"Authorization": f"Bearer {token}"},
@@ -128,7 +128,7 @@ async def test_create_order_no_items(client: TestClient):
     )  # FastAPI's validation error for Pydantic min_items=1 (or similar)
 
 
-async def test_get_order_success(client: TestClient):
+async def test_get_order_success(client: AsyncClient):
     inventory_item = await setup_test_inventory_item()
     # Use the helper to create an order
     created_order = await create_order_for_test(
@@ -137,7 +137,7 @@ async def test_get_order_success(client: TestClient):
     order_public_id = created_order.public_id
     token = await get_auth_token(client)
 
-    get_response = client.get(
+    get_response = await client.get(
         f"/api/v1/orders/{order_public_id}",
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -154,10 +154,10 @@ async def test_get_order_success(client: TestClient):
     assert len(retrieved_order_data["events"]) > 0
 
 
-async def test_get_order_not_found(client: TestClient):
+async def test_get_order_not_found(client: AsyncClient):
     non_existent_ksuid = generate_ksuid()
     token = await get_auth_token(client)
-    response = client.get(
+    response = await client.get(
         f"/api/v1/orders/{non_existent_ksuid}",
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -168,7 +168,7 @@ async def test_get_order_not_found(client: TestClient):
 
 
 async def test_ship_order_success_no_details(
-    admin_client: TestClient,
+    admin_client: AsyncClient,
 ):  # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
     # Order creation can still use the regular client's token via create_order_for_test,
@@ -179,7 +179,7 @@ async def test_ship_order_success_no_details(
     )
     # Token no longer needed from get_auth_token for the PATCH call
 
-    response = admin_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/ship"
     )  # Removed headers
     assert response.status_code == 200, response.text
@@ -203,7 +203,7 @@ async def test_ship_order_success_no_details(
 
 
 async def test_ship_order_success_with_details(
-    client: TestClient,
+    client: AsyncClient,
 ):  # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
     admin_client = client
@@ -216,7 +216,7 @@ async def test_ship_order_success_with_details(
     )
 
     ship_payload = {"tracking_number": "TRK12345", "shipping_provider": "FastShip"}
-    response = admin_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/ship",
         json=ship_payload,
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -240,14 +240,14 @@ async def test_ship_order_success_with_details(
 
 
 async def test_ship_order_not_found(
-    client: TestClient,
+    client: AsyncClient,
 ):  # Changed client to admin_client
     non_existent_ksuid = generate_ksuid()
     admin_client = client
     admin_token = await get_auth_token(
         client, username="adminfixture", password="adminpassword123"
     )
-    response = admin_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/orders/{non_existent_ksuid}/ship",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -255,7 +255,7 @@ async def test_ship_order_not_found(
 
 
 async def test_ship_order_already_shipped(
-    client: TestClient, test_user_admin_token
+    client: AsyncClient, test_user_admin_token
 ):  # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
     admin_client = client
@@ -267,11 +267,11 @@ async def test_ship_order_already_shipped(
         test_user_admin_token  # Assuming this provides admin token
     )
 
-    admin_client.patch(
+    await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/ship",
         headers={"Authorzation": f"Bearer {admin_token}"},
     )  # Ship it once, using admin_client default headers
-    response = admin_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/ship",
         headers={"Authorization": f"Bearer {admin_token}"},
     )  # Try to ship again, using admin_client default headers
@@ -281,7 +281,7 @@ async def test_ship_order_already_shipped(
 
 
 async def test_ship_order_cancelled(
-    client: TestClient, test_user_admin_token
+    client: AsyncClient, test_user_admin_token
 ):  # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
     admin_client = client
@@ -295,12 +295,12 @@ async def test_ship_order_cancelled(
     # For cancelling, if it's an admin action, this should also use admin_client.
     # If cancelling can be done by users, then create_order_for_test might need adjustment or use regular client.
     # Assuming for this test, the sequence uses admin privileges for both cancel and ship attempt.
-    admin_client.patch(
+    await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/cancel",
         json={"reason": "Test cancellation"},
         headers={"Authorization": f"Bearer {admin_token}"},
     )  # Cancel it
-    response = admin_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/ship",
         headers={"Authorization": f"Bearer {admin_token}"},
     )  # Try to ship
@@ -312,7 +312,7 @@ async def test_ship_order_cancelled(
 
 
 async def test_cancel_order_success_no_reason(
-    client: TestClient, test_user_admin_token
+    client: AsyncClient, test_user_admin_token
 ):  # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
     admin_client = client
@@ -324,7 +324,7 @@ async def test_cancel_order_success_no_reason(
     )
     # Token no longer needed from get_auth_token
 
-    response = admin_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/cancel",
         headers={"Authorization": f"Bearer {admin_token}"},
     )  # Removed headers
@@ -347,7 +347,7 @@ async def test_cancel_order_success_no_reason(
 
 
 async def test_cancel_order_success_with_reason(
-    admin_client: TestClient, test_user_admin_token
+    admin_client: AsyncClient, test_user_admin_token
 ):  # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
     order = await create_order_for_test(
@@ -356,7 +356,7 @@ async def test_cancel_order_success_with_reason(
     (admin_token, admin_user) = test_user_admin_token
 
     cancel_payload = {"reason": "Customer changed mind"}
-    response = admin_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/cancel",
         json=cancel_payload,
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -379,12 +379,12 @@ async def test_cancel_order_success_with_reason(
 
 
 async def test_cancel_order_not_found(
-    client: TestClient, test_user_admin_token
+    client: AsyncClient, test_user_admin_token
 ):  # Changed client to admin_client
     non_existent_ksuid = generate_ksuid()
     admin_client = client
     (admin_token, admin_user) = test_user_admin_token
-    response = admin_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/orders/{non_existent_ksuid}/cancel",
         headers={"Authorization": f"Bearer {admin_token}"},
     )  # Removed headers
@@ -392,7 +392,7 @@ async def test_cancel_order_not_found(
 
 
 async def test_cancel_order_already_cancelled(
-    client: TestClient, test_user_admin_token
+    client: AsyncClient, test_user_admin_token
 ):  # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
     admin_client = client
@@ -401,11 +401,11 @@ async def test_cancel_order_already_cancelled(
     )
     (admin_token, admin_user) = test_user_admin_token
 
-    admin_client.patch(
+    await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/cancel",
         headers={"Authorization": f"Bearer {admin_token}"},
     )  # Cancel it once
-    response = admin_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/cancel",
         headers={"Authorization": f"Bearer {admin_token}"},
     )  # Try to cancel again
@@ -414,7 +414,7 @@ async def test_cancel_order_already_cancelled(
 
 
 async def test_cancel_order_shipped_allowed_with_reason(
-    client: TestClient, test_user_admin_token
+    client: AsyncClient, test_user_admin_token
 ):  # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
     admin_client = client
@@ -427,13 +427,13 @@ async def test_cancel_order_shipped_allowed_with_reason(
     )
 
     # Assuming shipping can be done by admin, then cancelling by admin.
-    admin_client.patch(
+    await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/ship",
         json={"tracking_number": "TRKSHIPFIRST"},
         headers={"Authorization": f"Bearer {admin_token}"},
     )  # Ship it first
     cancel_payload = {"reason": "Customer requested cancellation after shipping"}
-    response = admin_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/cancel",
         json=cancel_payload,
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -457,7 +457,7 @@ async def test_cancel_order_shipped_allowed_with_reason(
 
 
 async def test_cancel_order_shipped_allowed_no_reason(
-    admin_client: TestClient, test_user_admin_token
+    admin_client: AsyncClient, test_user_admin_token
 ):  # Changed client to admin_client
     inventory_item = await setup_test_inventory_item()
     order = await create_order_for_test(
@@ -468,11 +468,11 @@ async def test_cancel_order_shipped_allowed_no_reason(
         test_user_admin_token  # Assuming this provides admin token
     )
 
-    admin_client.patch(
+    await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/ship",
         json={"tracking_number": "TRKSHIPFIRSTNOREASON"},
     )  # Ship it first
-    response = admin_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/orders/{order.public_id}/cancel",
         headers={"Authorization": f"Bearer {admin_token}"},
     )  # Try to cancel without reason, removed headers
@@ -498,10 +498,10 @@ async def test_cancel_order_shipped_allowed_no_reason(
 
 
 async def update_order_status(
-    admin_client: TestClient, order_public_id: str, status: str, admin_token: str
+    admin_client: AsyncClient, order_public_id: str, status: str, admin_token: str
 ):
     """Helper to update an order's status using the admin client."""
-    response = admin_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/orders/{order_public_id}/status",
         json={"status": status},
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -512,13 +512,13 @@ async def update_order_status(
 
 
 async def create_order_with_status(
-    client: TestClient,  # Use the client fixture (client or admin_client)
+    client: AsyncClient,  # Use the client fixture (client or admin_client)
     user_id: str,  # The user_id of the user to associate the order with
     token: str,  # The token to use for auth, if needed
     inventory_item_public_id: str,
     status: str,
     contact_name: str = "Order User",
-    admin_client: TestClient = None,
+    admin_client: AsyncClient = None,
     admin_token: str = None,
 ) -> OrderPublicSchema:
     """Helper to create an order and then update its status."""
@@ -534,7 +534,7 @@ async def create_order_with_status(
             }
         ],
     }
-    response = client.post(
+    response = await client.post(
         "/api/v1/orders/",
         json=order_payload,
         headers={"Authorization": f"Bearer {token}"},
@@ -551,7 +551,7 @@ async def create_order_with_status(
 
 
 async def test_list_orders_no_status_filter_user(
-    client: TestClient, test_user_customer_token, test_user_admin_token
+    client: AsyncClient, test_user_customer_token, test_user_admin_token
 ):
     inv_item1 = await setup_test_inventory_item()
     inv_item2 = await setup_test_inventory_item()
@@ -579,7 +579,7 @@ async def test_list_orders_no_status_filter_user(
     # If admin_client is not available, we skip creating other user's order.
     # The important part is test_user only sees their own.
 
-    response = client.get(
+    response = await client.get(
         "/api/v1/orders/", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200, response.text
@@ -592,7 +592,7 @@ async def test_list_orders_no_status_filter_user(
 
 
 async def test_list_orders_no_status_filter_admin(
-    client: TestClient, test_user_customer_token, test_user_admin_token
+    client: AsyncClient, test_user_customer_token, test_user_admin_token
 ):
     inv_item1 = await setup_test_inventory_item()
     inv_item2 = await setup_test_inventory_item()
@@ -653,7 +653,7 @@ async def test_list_orders_no_status_filter_admin(
         "Admin Order Cancelled",
     )
 
-    response = admin_client.get(
+    response = await admin_client.get(
         "/api/v1/orders/", headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert response.status_code == 200, response.text
@@ -668,7 +668,7 @@ async def test_list_orders_no_status_filter_admin(
 
 
 async def test_list_orders_single_status_filter_user(
-    client: TestClient, test_user_customer_token
+    client: AsyncClient, test_user_customer_token
 ):
     inv_item1 = await setup_test_inventory_item()
     inv_item2 = await setup_test_inventory_item()
@@ -682,7 +682,7 @@ async def test_list_orders_single_status_filter_user(
         client, test_user.id, token, inv_item2.public_id, "shipped", "User Shipped"
     )
 
-    response = client.get(
+    response = await client.get(
         "/api/v1/orders/?statuses=placed", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200, response.text
@@ -696,7 +696,7 @@ async def test_list_orders_single_status_filter_user(
 
 
 async def test_list_orders_single_status_filter_admin(
-    admin_client: TestClient, test_user_customer_token, test_user_admin_token
+    admin_client: AsyncClient, test_user_customer_token, test_user_admin_token
 ):
     inv_item1 = await setup_test_inventory_item()
     inv_item2 = await setup_test_inventory_item()
@@ -708,7 +708,7 @@ async def test_list_orders_single_status_filter_admin(
     order_u1_placed = await create_order_with_status(
         admin_client, test_user.id, token, inv_item1.public_id, "placed", "User Placed"
     )
-    order_admin_shipped = await create_order_with_status(
+    _order_admin_shipped = await create_order_with_status(
         admin_client,
         admin_user.id,
         admin_token,
@@ -716,7 +716,7 @@ async def test_list_orders_single_status_filter_admin(
         "shipped",
         "Admin Shipped",
     )
-    order_u1_shipped_too = await create_order_with_status(
+    _order_u1_shipped_too = await create_order_with_status(
         admin_client,
         test_user.id,
         token,
@@ -725,7 +725,7 @@ async def test_list_orders_single_status_filter_admin(
         "User Shipped Too",
     )
 
-    response = admin_client.get(
+    response = await admin_client.get(
         "/api/v1/orders/?statuses=shipped",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -743,7 +743,7 @@ async def test_list_orders_single_status_filter_admin(
 
 
 async def test_list_orders_multiple_status_filter_user(
-    client: TestClient, test_user_customer_token
+    client: AsyncClient, test_user_customer_token
 ):
     inv_item1 = await setup_test_inventory_item()
     inv_item2 = await setup_test_inventory_item()
@@ -761,7 +761,7 @@ async def test_list_orders_multiple_status_filter_user(
         client, test_user.id, token, inv_item3.public_id, "cancelled", "User Cancelled"
     )
 
-    response = client.get(
+    response = await client.get(
         "/api/v1/orders/?statuses=placed&statuses=shipped",
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -781,7 +781,7 @@ async def test_list_orders_multiple_status_filter_user(
 
 
 async def test_list_orders_multiple_status_filter_admin(
-    admin_client: TestClient, test_user_customer_token, test_user_admin_token
+    admin_client: AsyncClient, test_user_customer_token, test_user_admin_token
 ):
     inv_item1 = await setup_test_inventory_item()
     inv_item2 = await setup_test_inventory_item()
@@ -819,7 +819,7 @@ async def test_list_orders_multiple_status_filter_admin(
         "Admin Placed Too",
     )
 
-    response = admin_client.get("/api/v1/orders/?statuses=placed&statuses=cancelled")
+    response = await admin_client.get("/api/v1/orders/?statuses=placed&statuses=cancelled")
     assert response.status_code == 200, response.text
     data = response.json()
     order_ids_returned = {order["public_id"] for order in data}
@@ -839,7 +839,7 @@ async def test_list_orders_multiple_status_filter_admin(
 
 
 async def test_list_orders_status_filter_no_match_user(
-    client: TestClient, test_user_customer_token, test_user_admin_token
+    client: AsyncClient, test_user_customer_token, test_user_admin_token
 ):
     inv_item1 = await setup_test_inventory_item()
     (token, test_user) = test_user_customer_token
@@ -848,7 +848,7 @@ async def test_list_orders_status_filter_no_match_user(
     )
 
     (admin_token, admin_user) = test_user_admin_token
-    response = client.get(
+    response = await client.get(
         "/api/v1/orders/?statuses=delivered",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -858,8 +858,8 @@ async def test_list_orders_status_filter_no_match_user(
 
 
 async def test_list_orders_status_filter_no_match_admin(
-    admin_client: TestClient,
-    client: TestClient,
+    admin_client: AsyncClient,
+    client: AsyncClient,
     test_user_customer_token,
     test_user_admin_token,
 ):
@@ -870,7 +870,7 @@ async def test_list_orders_status_filter_no_match_admin(
     )
 
     (admin_token, admin_user) = test_user_admin_token
-    response = admin_client.get(
+    response = await admin_client.get(
         "/api/v1/orders/?statuses=nonexistentstatus",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -880,7 +880,7 @@ async def test_list_orders_status_filter_no_match_admin(
 
 
 async def test_list_orders_status_filter_empty_string_admin(
-    admin_client: TestClient, test_user_customer_token, test_user_admin_token
+    admin_client: AsyncClient, test_user_customer_token, test_user_admin_token
 ):
     # Test that an empty statuses string is treated as no filter
     inv_item1 = await setup_test_inventory_item()
@@ -906,7 +906,7 @@ async def test_list_orders_status_filter_empty_string_admin(
         "Admin Order1 Empty String",
     )
 
-    response = admin_client.get(
+    response = await admin_client.get(
         "/api/v1/orders/?statuses=", headers={"Authorization": f"Bearer {admin_token}"}
     )  # Empty status query
     assert response.status_code == 200, response.text
@@ -919,7 +919,7 @@ async def test_list_orders_status_filter_empty_string_admin(
 
 
 async def test_list_orders_status_filter_with_spaces_user(
-    client: TestClient, test_user_customer_token
+    client: AsyncClient, test_user_customer_token
 ):
     inv_item1 = await setup_test_inventory_item()
     inv_item2 = await setup_test_inventory_item()
@@ -938,7 +938,7 @@ async def test_list_orders_status_filter_with_spaces_user(
         "User Shipped Spaces",
     )
 
-    response = client.get(
+    response = await client.get(
         "/api/v1/orders/?statuses=%20placed%20&statuses=%20shipped%20",
         headers={"Authorization": f"Bearer {token}"},
     )  # Statuses with spaces
