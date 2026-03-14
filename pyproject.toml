@@ -26,9 +26,8 @@ manage-users = "app.cli.main:app"
 [tool.fastapi]
 entrypoint = "app.main:app"
 
-[tool.aerich]
+[tool.tortoise]
 tortoise_orm = "app.main.TORTOISE_ORM_CONFIG"
-location = "./migrations"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

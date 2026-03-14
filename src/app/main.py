@@ -26,6 +26,7 @@ TORTOISE_ORM_CONFIG = {
                 "app.features.orders.models",
             ],
             "default_connection": "default",
+            "migrations": "migrations.models",
         }
     },
 }

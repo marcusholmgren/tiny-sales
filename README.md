@@ -19,14 +19,13 @@ The system is built with a modern Python stack, featuring FastAPI for the web fr
 To run the development API server, use the following command:
 
 ```bash
-uv run fastapi dev src/app/main.py
 ```
 
 The API will be accessible at `http://127.0.0.1:8000`.
 
 ## Database Migrations
 
-This project uses [Aerich](https://tortoise-orm.readthedocs.io/en/latest/aerich.html) for database migrations, which works with Tortoise ORM.
+This project uses the built in migration system of Tortoise ORM.
 
 ### Initialize the Database
 
@@ -34,23 +33,23 @@ Before running migrations for the first time, you need to initialize the databas
 
 Create initial database migration:
 ```bash
-uv run aerich init-db
+uv run tortoise init
 ```
 This command creates the database file (if it doesn't exist) and the migration directory.
 
 Create a new database migration
 ```bash
-uv run aerich migrate --name <migration_name>
+uv run tortoise makemigrations -n <name>
 ```
 
-Upgrade the database to the latest version
+Apply the first migration
 ```bash
-uv run aerich upgrade
+uv run tortoise migrate
 ```
 
-List all migrations
+List all applied migrations
 ```bash
-uv run aerich history
+uv run tortoise history
 ```
 
 ## Test database connection
@@ -78,7 +77,6 @@ uv run src/app/cli/main.py create-admin --username admin --email admin@test.com 
 - [uv](https://docs.astral.sh/uv/)
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [TortoiseORM](https://tortoise-orm.readthedocs.io/en/latest/)
-- [Aerich](https://tortoise-orm.readthedocs.io/en/latest/aerich.html)
 - [SQLite](https://www.sqlite.org/index.html)
 - [Svix-KSUID](https://github.com/svix/python-ksuid)
 - [python-jose](https://github.com/mpdavis/python-jose)

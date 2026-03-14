@@ -41,9 +41,9 @@ TORTOISE_ORM_CONFIG = {
                 "app.features.inventory.models",
                 "app.features.orders.models",
                 # "app.common.models",
-                "aerich.models",  # For Aerich migrations
             ],
             "default_connection": "default",
+            "migrations": "migrations.models",
         }
     },
     "use_tz": False,  # Explicitly set for Tortoise
