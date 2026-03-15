@@ -11,8 +11,8 @@ from app.features.orders.schemas import (
 
 # from backend.schemas import OrderItemPublicSchema, OrderShipRequestSchema, OrderCancelRequestSchema # Ensure these exist if used
 
-# Use anyio_backend fixture from conftest if not already picked up
-pytestmark = pytest.mark.anyio
+# Use asyncio marker
+pytestmark = pytest.mark.asyncio
 
 
 async def setup_test_inventory_item():

@@ -61,7 +61,9 @@ uv run src/app/cli/main.py test-db-connection
 It will report if the connection is successful and how many users are in the database.
 
 
-## Create an admin user
+## Management CLI
+
+### Create an admin user
 
 │ *  --username        TEXT  Username for the new admin. [default: None] [required]                                                                                           │
 │ *  --email           TEXT  Email for the new admin. [default: None] [required]                                                                                              │
@@ -69,8 +71,29 @@ It will report if the connection is successful and how many users are in the dat
 
 You can create an admin user with the CLI command:
 ```bash
-uv run src/app/cli/main.py create-admin --username admin --email admin@test.com --password admin123
+uv run manage-users users create-admin --username admin --email admin@test.com --password admin123
 ```
+
+
+The project includes a CLI for administrative tasks. You can run it via `uv`:
+
+```bash
+# General help
+uv run manage-users --help
+
+# Create an initial admin user
+uv run manage-users users create-admin
+
+# Manage existing users
+uv run manage-users users promote-to-admin <username>
+uv run manage-users users disable-user <username>
+
+# Test database connectivity
+uv run manage-users test-db-connection
+```
+
+*Note: `manage-users` is an alias defined in `pyproject.toml`. You can also run the script directly: `uv run src/app/cli/main.py`.*
+
 
 ## Technology
 

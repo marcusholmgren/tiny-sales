@@ -8,7 +8,6 @@ to ensure that each test runs against a fresh, isolated in-memory database,
 which is the most reliable method for an async pytest environment.
 
 Key Fixtures:
-- `anyio_backend`: Specifies the asyncio backend for pytest-asyncio.
 - `initialize_test_db`: (autouse) Creates a fresh DB schema for each test.
 - `app_for_testing`: Provides the FastAPI application instance with its production
   lifespan disabled to allow `initialize_test_db` to manage the test DB.
@@ -87,14 +86,6 @@ async def add_report_admin():
         role="admin",
     )
     return user
-
-
-@pytest.fixture(scope="session")
-def anyio_backend() -> str:
-    """
-    Specifies the asyncio backend for pytest-asyncio.
-    """
-    return "asyncio"
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)

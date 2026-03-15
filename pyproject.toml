@@ -31,9 +31,7 @@ tortoise_orm = "app.main.TORTOISE_ORM_CONFIG"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
-filterwarnings = [
-    "ignore:Tortoise connection 'default' was created on a different event loop and will be reconnected"
-]
+asyncio_mode = "auto"
 
 [dependency-groups]
 dev = [
