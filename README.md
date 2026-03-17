@@ -8,6 +8,8 @@ This project is a simple sales and inventory API system designed to manage produ
 
 The system is built with a modern Python stack, featuring FastAPI for the web framework, Tortoise ORM for asynchronous database interaction, and `uv` for dependency management.
 
+![Tiny Sales infographic](./docs/Gemini_Generated_Image_7ym8zi7ym8zi7ym8.jpg)
+
 ## Features
 
 - **Inventory Management:** Includes support for product categories, allowing for better organization and filtering of items. Full CRUD operations for items and categories.
