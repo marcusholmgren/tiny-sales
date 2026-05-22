@@ -1,12 +1,35 @@
-import os
+"""Configuration module for the Tiny Sales application.
 
-# In a real app, load from environment variables or a config file
-SECRET_KEY: str = os.getenv(
-    "SECRET_KEY", "your-secret-key-for-jwt-!ChangeMe!"
-)  # TODO: Use a strong, environment-based secret
-ALGORITHM: str = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+This module uses Pydantic Settings to manage application configuration settings,
+supporting environment variables, default values, and `.env` files.
+"""
 
-# Example of other potential configurations:
-# DATABASE_URL = os.getenv("DATABASE_URL", "sqlite://./tiny_sales.sqlite3")
-# DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() in ("true", "1", "t")
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Application settings class.
+
+    Variables are read from environment variables, fallback defaults,
+    or a `.env` file if present.
+    """
+
+    secret_key: str = "your-secret-key-for-jwt-!ChangeMe!"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    database_url: str = "sqlite://./tiny_sales.sqlite3"
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+    )
+
+
+settings = Settings()
+
+# Backward compatibility exports for existing codebase imports
+SECRET_KEY = settings.secret_key
+ALGORITHM = settings.algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
+DATABASE_URL = settings.database_url

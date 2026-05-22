@@ -9,8 +9,8 @@ and order breakdowns.
 import datetime
 import logging
 from typing import Optional
-from tortoise.functions import Count
-from tortoise.expressions import Q
+from tortoise.functions import Count, Sum
+from tortoise.expressions import Q, F, RawSQL
 
 # Models from other features
 from ..auth.models import User as AuthUser
@@ -62,46 +62,35 @@ async def generate_total_sales_report(
             - start_date: The start date used for filtering (if provided)
             - end_date: The end date used for filtering (if provided)
     """
-    query = Order.filter(
-        Q(status="shipped") | Q(status="completed")
-    )  # Corrected status from previous example
+    filters = {
+        "order__status__in": ["shipped", "completed"]
+    }
     if start_date:
-        query = query.filter(created_at__gte=start_date)
+        filters["order__created_at__gte"] = start_date
     if end_date:
-        # Add 1 day to end_date to make it inclusive for date range queries
-        query = query.filter(created_at__lt=end_date + datetime.timedelta(days=1))
+        filters["order__created_at__lt"] = end_date + datetime.timedelta(days=1)
 
     if current_user.role != "admin":
-        query = query.filter(user_id=current_user.id)
+        filters["order__user_id"] = current_user.id
 
-    orders = await query.all()
-    order_ids = [order.id for order in orders]
+    totals = await OrderItem.filter(**filters).annotate(
+        total_revenue=Sum(RawSQL("order_items.price_at_purchase * order_items.quantity")),
+        item_count=Sum("quantity"),
+        order_count=Count("order_id", distinct=True)
+    ).group_by("order__status").values("total_revenue", "item_count", "order_count")
 
-    if not order_ids:
-        return TotalSalesResponse(
-            total_revenue=0.0,
-            item_count=0,
-            order_count=0,
-            start_date=start_date,
-            end_date=end_date,
-        )
-
-    items_data = await OrderItem.filter(order_id__in=order_ids).values(
-        "price_at_purchase", "quantity"
-    )
-    total_revenue = sum(
-        item["price_at_purchase"] * item["quantity"]
-        for item in items_data
-        if item["price_at_purchase"] is not None and item["quantity"] is not None
-    )
-    item_count = sum(
-        item["quantity"] for item in items_data if item["quantity"] is not None
-    )
+    total_revenue = 0.0
+    item_count = 0
+    order_count = 0
+    for res in totals:
+        total_revenue += res.get("total_revenue") or 0.0
+        item_count += res.get("item_count") or 0
+        order_count += res.get("order_count") or 0
 
     return TotalSalesResponse(
         total_revenue=float(total_revenue),
         item_count=item_count,
-        order_count=len(orders),
+        order_count=order_count,
         start_date=start_date,
         end_date=end_date,
     )
@@ -142,30 +131,27 @@ async def generate_sales_by_product_report(
     if current_user.role != "admin":
         order_filter &= Q(order__user_id=current_user.id)
 
-    product_sales_data = {}
-    order_items = await OrderItem.filter(order_filter).prefetch_related("item").all()
-    for oi in order_items:
-        if not oi.item:
-            continue
-        product_id = oi.item.public_id
-        product_name = oi.item.name
-        if product_id not in product_sales_data:
-            product_sales_data[product_id] = {
-                "name": product_name,
-                "quantity": 0,
-                "revenue": 0.0,
-            }
-        product_sales_data[product_id]["quantity"] += oi.quantity
-        product_sales_data[product_id]["revenue"] += oi.quantity * oi.price_at_purchase
+    results = await OrderItem.filter(order_filter).annotate(
+        total_quantity_sold=Sum("quantity"),
+        total_revenue=Sum(RawSQL("order_items.price_at_purchase * order_items.quantity")),
+    ).group_by(
+        "item__public_id", "item__name"
+    ).values(
+        "item__public_id",
+        "item__name",
+        "total_quantity_sold",
+        "total_revenue",
+    )
 
     response_items = [
         ProductSaleInfo(
-            product_public_id=pid,
-            product_name=data["name"],
-            total_quantity_sold=data["quantity"],
-            total_revenue=data["revenue"],
+            product_public_id=data["item__public_id"],
+            product_name=data["item__name"],
+            total_quantity_sold=data["total_quantity_sold"],
+            total_revenue=data["total_revenue"],
         )
-        for pid, data in product_sales_data.items()
+        for data in results
+        if data["item__public_id"] is not None
     ]
     response_items.sort(key=lambda x: x.total_revenue, reverse=True)
     return SalesByProductResponse(
@@ -209,16 +195,26 @@ async def generate_sales_by_category_report(
     if current_user.role != "admin":
         order_filter &= Q(order__user_id=current_user.id)
 
-    order_items = (
-        await OrderItem.filter(order_filter).prefetch_related("item__category").all()
+    results = await OrderItem.filter(order_filter).annotate(
+        total_quantity_sold=Sum("quantity"),
+        total_revenue=Sum(RawSQL("order_items.price_at_purchase * order_items.quantity")),
+    ).group_by(
+        "item__category__public_id", "item__category__name"
+    ).values(
+        "item__category__public_id",
+        "item__category__name",
+        "total_quantity_sold",
+        "total_revenue",
     )
+
     category_sales_data = {}
-    for oi in order_items:
-        if not oi.item:
-            continue
-        cat_id, cat_name = ("uncategorized", "Uncategorized")
-        if oi.item.category:
-            cat_id, cat_name = (oi.item.category.public_id, oi.item.category.name)
+    for data in results:
+        cat_id = data.get("item__category__public_id")
+        cat_name = data.get("item__category__name")
+
+        if cat_id is None:
+            cat_id = "uncategorized"
+            cat_name = "Uncategorized"
 
         if cat_id not in category_sales_data:
             category_sales_data[cat_id] = {
@@ -226,8 +222,8 @@ async def generate_sales_by_category_report(
                 "quantity": 0,
                 "revenue": 0.0,
             }
-        category_sales_data[cat_id]["quantity"] += oi.quantity
-        category_sales_data[cat_id]["revenue"] += oi.quantity * oi.price_at_purchase
+        category_sales_data[cat_id]["quantity"] += data["total_quantity_sold"]
+        category_sales_data[cat_id]["revenue"] += data["total_revenue"]
 
     response_items = [
         CategorySaleInfo(
