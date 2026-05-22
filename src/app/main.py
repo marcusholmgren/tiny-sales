@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import tortoise_exception_handlers
 
-
+from .core.config import settings
 from .features.inventory.router import router as inventory_router
 from .features.orders.router import router as orders_router
 from .features.auth.router import router as auth_router
@@ -16,7 +16,7 @@ logger = logging.getLogger("app.main")  # This logger will inherit from 'app'
 
 TORTOISE_ORM_CONFIG = {
     "connections": {
-        "default": os.getenv("DATABASE_URL", "sqlite://./tiny_sales.sqlite3")
+        "default": settings.database_url
     },
     "apps": {
         "models": {  # This is an app label, can be anything
@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Handles startup and shutdown events, such as connecting to the database.
     """
     logger.info("Starting application...")
-    await Tortoise.init(config=TORTOISE_ORM_CONFIG)
+    await Tortoise.init(config=TORTOISE_ORM_CONFIG, _enable_global_fallback=True)
     logger.info("Tortoise-ORM has been initialized.")
 
     yield
