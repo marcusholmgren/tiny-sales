@@ -47,6 +47,10 @@ class Order(TimestampMixin):
         table = "orders"
 
 
+from decimal import Decimal
+from ...common import Currency, Money
+
+
 class OrderItem(TimestampMixin):
     id = fields.IntField(primary_key=True)
     public_id = fields.CharField(
@@ -65,7 +69,34 @@ class OrderItem(TimestampMixin):
     )
 
     quantity = fields.IntField()
-    price_at_purchase = fields.FloatField()
+    price_amount = fields.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        default=Decimal("0.0000"),
+        description="Amount of the price at purchase",
+    )
+    price_currency = fields.CharField(
+        max_length=3,
+        default="SEK",
+        description="Currency code of the price at purchase",
+    )
+
+    def __init__(self, **kwargs):
+        price_at_purchase = kwargs.pop("price_at_purchase", None)
+        super().__init__(**kwargs)
+        if price_at_purchase is not None:
+            self.price_at_purchase = price_at_purchase
+
+    @property
+    def price_at_purchase(self) -> Money:
+        return Money.of(self.price_amount, Currency[self.price_currency])
+
+    @price_at_purchase.setter
+    def price_at_purchase(self, val: Money | float | Decimal):
+        if not isinstance(val, Money):
+            val = Money.of(val, Currency.SEK)
+        self.price_amount = val.amount
+        self.price_currency = val.currency.code
 
     def __str__(self):
         item_name = (
@@ -76,7 +107,7 @@ class OrderItem(TimestampMixin):
             if hasattr(self.order, "order_id") and self.order.order_id
             else "N/A"
         )
-        return f"{self.quantity} x {item_name} for Order {order_id_val}"
+        return f"{self.quantity} x {item_name} ({self.price_at_purchase}) for Order {order_id_val}"
 
     class Meta:
         table = "order_items"

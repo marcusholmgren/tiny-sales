@@ -69,7 +69,7 @@ async def test_create_order_success(client: AsyncClient):  # Changed from AsyncC
     assert len(data["items"]) == 1
     assert data["items"][0]["product_public_id"] == inventory_item.public_id
     assert data["items"][0]["quantity"] == 2
-    assert data["items"][0]["price_at_purchase"] == 10.50
+    assert data["items"][0]["price_at_purchase"] == {"amount": "10.50", "currency": "SEK"}
 
     # Assuming events are part of the response schema
     assert len(data["events"]) >= 1  # At least 'order_placed'

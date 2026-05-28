@@ -28,15 +28,18 @@ class OrderItemBase(BaseModel):
     quantity: int = Field(..., gt=0, description="Quantity of the product")
 
 
+from ...common import MoneySchema
+
+
 class OrderItemCreateSchema(OrderItemBase):
-    price_at_purchase: float = Field(
-        ..., gt=0, description="Price of the product at the time of purchase"
+    price_at_purchase: MoneySchema = Field(
+        ..., description="Price of the product at the time of purchase"
     )
 
 
 class OrderItemPublicSchema(OrderItemBase):
     public_id: str = Field(..., description="Public KSUID of this order item")
-    price_at_purchase: float = Field(
+    price_at_purchase: MoneySchema = Field(
         ..., description="Price of the product at the time of purchase"
     )
     # product_name: Optional[str] = None # Consider adding this if needed for display, requires fetching item details

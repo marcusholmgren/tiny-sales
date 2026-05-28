@@ -74,7 +74,7 @@ async def generate_total_sales_report(
         filters["order__user_id"] = current_user.id
 
     totals = await OrderItem.filter(**filters).annotate(
-        total_revenue=Sum(RawSQL("order_items.price_at_purchase * order_items.quantity")),
+        total_revenue=Sum(RawSQL("order_items.price_amount * order_items.quantity")),
         item_count=Sum("quantity"),
         order_count=Count("order_id", distinct=True)
     ).group_by("order__status").values("total_revenue", "item_count", "order_count")
@@ -133,7 +133,7 @@ async def generate_sales_by_product_report(
 
     results = await OrderItem.filter(order_filter).annotate(
         total_quantity_sold=Sum("quantity"),
-        total_revenue=Sum(RawSQL("order_items.price_at_purchase * order_items.quantity")),
+        total_revenue=Sum(RawSQL("order_items.price_amount * order_items.quantity")),
     ).group_by(
         "item__public_id", "item__name"
     ).values(
@@ -197,7 +197,7 @@ async def generate_sales_by_category_report(
 
     results = await OrderItem.filter(order_filter).annotate(
         total_quantity_sold=Sum("quantity"),
-        total_revenue=Sum(RawSQL("order_items.price_at_purchase * order_items.quantity")),
+        total_revenue=Sum(RawSQL("order_items.price_amount * order_items.quantity")),
     ).group_by(
         "item__category__public_id", "item__category__name"
     ).values(
@@ -378,9 +378,7 @@ async def generate_inventory_value_report() -> InventoryValueResponse:
     total_value = 0.0
     value_items_breakdown = []
     for item in inventory_items:
-        current_price = getattr(
-            item, "current_price", 0.0
-        )  # Safely access current_price
+        current_price = float(item.price_amount)
         item_total_value = item.quantity * current_price
         total_value += item_total_value
         value_items_breakdown.append(

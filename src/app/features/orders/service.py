@@ -24,6 +24,7 @@ from ..auth.schemas import UserResponse  # For embedding in OrderPublicSchema
 
 # Utilities
 from ...common.models import generate_ksuid  # KSUID generation
+from ...common import MoneySchema
 
 
 async def get_order_by_public_id(order_public_id: str, current_user: AuthUser) -> Order:
@@ -238,7 +239,8 @@ async def _process_order_items(order, items, conn):
             order=order,
             item_id=inventory_item.id,
             quantity=item_data.quantity,
-            price_at_purchase=item_data.price_at_purchase,
+            price_amount=item_data.price_at_purchase.amount,
+            price_currency=item_data.price_at_purchase.currency,
             using_db=conn,
         )
 
@@ -255,7 +257,10 @@ async def _to_order_public_schema(order: Order) -> OrderPublicSchema:
             public_id=item.public_id,
             product_public_id=item.item.public_id,
             quantity=item.quantity,
-            price_at_purchase=item.price_at_purchase,
+            price_at_purchase=MoneySchema(
+                amount=item.price_at_purchase.amount,
+                currency=item.price_at_purchase.currency.code,
+            ),
         )
         for item in order.items
     ]

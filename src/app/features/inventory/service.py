@@ -1,7 +1,9 @@
 import datetime
 import logging
+from decimal import Decimal
 from typing import Optional, List
 from fastapi import HTTPException, status
+from ...common import MoneySchema
 from .models import InventoryItem, Category
 from .schemas import (
     InventoryItemCreate,
@@ -26,7 +28,10 @@ def _to_inventory_response(inventory_item: InventoryItem) -> InventoryItemRespon
         public_id=inventory_item.public_id,
         name=inventory_item.name,
         quantity=inventory_item.quantity,
-        current_price=inventory_item.current_price,
+        current_price=MoneySchema(
+            amount=inventory_item.current_price.amount,
+            currency=inventory_item.current_price.currency.code
+        ),
         category=category_data,
         created_at=inventory_item.created_at,
         updated_at=inventory_item.updated_at,
@@ -45,6 +50,14 @@ async def create_inventory_item(item_in: InventoryItemCreate) -> InventoryItemRe
     """
     item_data = item_in.model_dump()
     category_public_id = item_data.pop("category_id", None)
+    current_price_data = item_data.pop("current_price", None)
+
+    price_amount = Decimal("0.0000")
+    price_currency = "SEK"
+    if current_price_data:
+        price_amount = current_price_data["amount"]
+        price_currency = current_price_data["currency"]
+
     category_instance = None
 
     if category_public_id:
@@ -55,7 +68,10 @@ async def create_inventory_item(item_in: InventoryItemCreate) -> InventoryItemRe
                 detail=f"Category with public_id {category_public_id} not found",
             )
     inventory_item = await InventoryItem.create(
-        **item_data, category=category_instance
+        **item_data,
+        category=category_instance,
+        price_amount=price_amount,
+        price_currency=price_currency,
     )
     await inventory_item.fetch_related("category")
     return _to_inventory_response(inventory_item)
@@ -147,6 +163,12 @@ async def update_inventory_item(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="No fields for update"
         )
+
+    if "current_price" in update_data:
+        price_data = update_data.pop("current_price")
+        if price_data:
+            inventory_item.price_amount = Decimal(str(price_data["amount"]))
+            inventory_item.price_currency = price_data["currency"]
 
     if "category_id" in update_data:
         category_public_id = update_data.pop("category_id")

@@ -45,6 +45,9 @@ class CategoryResponse(CategoryBase):
     )
 
 
+from ...common import MoneySchema
+
+
 # --- Inventory Schemas ---
 class InventoryItemBase(BaseModel):
     name: str = Field(
@@ -53,8 +56,9 @@ class InventoryItemBase(BaseModel):
     quantity: int = Field(
         default=0, ge=0, description="Current stock quantity of the item"
     )
-    current_price: float = Field(
-        default=0.0, ge=0, description="Current price of the item"
+    current_price: MoneySchema = Field(
+        default_factory=lambda: MoneySchema(amount=0, currency="SEK"),
+        description="Current price of the item",
     )
 
 
@@ -71,8 +75,8 @@ class InventoryItemUpdate(BaseModel):
     quantity: Optional[int] = Field(
         None, ge=0, description="New stock quantity of the item"
     )
-    current_price: Optional[float] = Field(
-        None, ge=0, description="New current price of the item"
+    current_price: Optional[MoneySchema] = Field(
+        None, description="New current price of the item"
     )
     category_id: Optional[str] = Field(
         None, description="Public ID of the new category to assign to the item"
