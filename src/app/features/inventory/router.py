@@ -52,18 +52,24 @@ async def create_inventory_item(
     tags=["Inventory"],
 )
 async def list_inventory_items(
-    page: int = Query(1, ge=1, description="Page number"),
-    size: int = Query(10, ge=1, le=100, description="Number of items per page"),
+    limit: int = Query(10, ge=1, le=100, description="Number of items per page"),
+    cursor: Optional[str] = Query(None, description="Forward cursor for pagination"),
+    prev_cursor: Optional[str] = Query(None, description="Backward cursor for pagination"),
     category_public_id: Optional[str] = Query(
         None, description="Public ID of the category to filter by"
     ),
 ):
     """
-    Retrieves a paginated list of active inventory items.
+    Retrieves a cursor-paginated list of active inventory items.
 
     Can be filtered by category.
     """
-    return await service.list_inventory_items(page, size, category_public_id)
+    return await service.list_inventory_items(
+        limit=limit,
+        cursor=cursor,
+        prev_cursor=prev_cursor,
+        category_public_id=category_public_id,
+    )
 
 
 @router.get(

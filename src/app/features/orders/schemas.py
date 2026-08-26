@@ -87,3 +87,10 @@ class OrderPublicSchema(OrderBase):
 
 # If forward refs were an issue (UserResponse defined after OrderPublicSchema), rebuild would be needed.
 # OrderPublicSchema.model_rebuild()
+
+from ...common.cursor import CursorPage
+
+
+class PaginatedOrderResponse(CursorPage[OrderPublicSchema]):
+    """Cursor-paginated response for orders."""
+    pass

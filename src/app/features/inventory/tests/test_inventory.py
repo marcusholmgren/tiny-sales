@@ -1,4 +1,3 @@
-
 import pytest
 from fastapi import HTTPException
 from app.features.inventory.service import (
@@ -150,11 +149,45 @@ async def test_get_inventory_item_not_found():
 
 @pytest.mark.asyncio
 async def test_list_inventory_items(sample_inventory: list[InventoryItem]):
-    """Test listing inventory items."""
-    paginated_response = await list_inventory_items(page=1, size=10, category_public_id=None)
-    assert paginated_response.total >= len(sample_inventory)
-    assert paginated_response.page == 1
-    assert paginated_response.size == 10
+    """Test listing inventory items with cursor pagination."""
+    paginated_response = await list_inventory_items(limit=10, cursor=None, prev_cursor=None, category_public_id=None)
+    assert len(paginated_response.items) >= len(sample_inventory)
+    assert paginated_response.has_prev is False
+
+
+@pytest.mark.asyncio
+async def test_list_inventory_items_cursor_navigation(inventory_item_factory):
+    """Test forward and backward cursor navigation for inventory items."""
+    await inventory_item_factory("Item A")
+    await inventory_item_factory("Item B")
+    await inventory_item_factory("Item C")
+
+    # Page 1
+    page1 = await list_inventory_items(limit=2)
+    assert len(page1.items) == 2
+    assert page1.items[0].name == "Item A"
+    assert page1.items[1].name == "Item B"
+    assert page1.has_next is True
+    assert page1.has_prev is False
+    assert page1.next_cursor is not None
+    assert page1.prev_cursor is None
+
+    # Page 2 (forward navigation)
+    page2 = await list_inventory_items(limit=2, cursor=page1.next_cursor)
+    assert len(page2.items) == 1
+    assert page2.items[0].name == "Item C"
+    assert page2.has_next is False
+    assert page2.has_prev is True
+    assert page2.next_cursor is None
+    assert page2.prev_cursor is not None
+
+    # Back to Page 1 (backward navigation)
+    back_to_page1 = await list_inventory_items(limit=2, prev_cursor=page2.prev_cursor)
+    assert len(back_to_page1.items) == 2
+    assert back_to_page1.items[0].name == "Item A"
+    assert back_to_page1.items[1].name == "Item B"
+    assert back_to_page1.has_next is True
+    assert back_to_page1.has_prev is False
 
 
 @pytest.mark.asyncio
@@ -167,9 +200,9 @@ async def test_list_inventory_items_by_category(
     await inventory_item_factory("Item 3", category=default_category)
 
     paginated_response = await list_inventory_items(
-        page=1, size=10, category_public_id=default_category.public_id
+        limit=10, cursor=None, prev_cursor=None, category_public_id=default_category.public_id
     )
-    assert paginated_response.total == 2
+    assert len(paginated_response.items) == 2
     for item in paginated_response.items:
         assert item.category.public_id == default_category.public_id
 

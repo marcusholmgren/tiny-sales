@@ -1,6 +1,8 @@
 # External dependencies
+import datetime
 from tortoise.transactions import in_transaction
 from tortoise.exceptions import DoesNotExist
+from tortoise.expressions import Q
 from fastapi import HTTPException, status  # For exceptions, status codes
 
 # Typing
@@ -19,12 +21,14 @@ from .schemas import (
     OrderCreateSchema,
     OrderShipRequestSchema,
     OrderCancelRequestSchema,
+    PaginatedOrderResponse,
 )
 from ..auth.schemas import UserResponse  # For embedding in OrderPublicSchema
 
 # Utilities
 from ...common.models import generate_ksuid  # KSUID generation
 from ...common import MoneySchema
+from ...common.cursor import encode_cursor, decode_cursor
 
 
 async def get_order_by_public_id(order_public_id: str, current_user: AuthUser) -> Order:
@@ -50,28 +54,145 @@ async def get_order_by_public_id(order_public_id: str, current_user: AuthUser) -
 
 
 async def get_all_orders(
-    current_user: AuthUser, page: int, size: int, statuses: Optional[List[str]]
-) -> List[Order]:
-    offset = (page - 1) * size
-    # Base query with prefetching for efficiency, ordered by creation date descending
-    query = (
-        Order.all()
-        .prefetch_related("user", "items__item", "events")
-        .order_by("-created_at")
-    )
+    current_user: AuthUser,
+    limit: int = 10,
+    cursor: Optional[str] = None,
+    prev_cursor: Optional[str] = None,
+    statuses: Optional[List[str]] = None,
+) -> PaginatedOrderResponse:
+    base_filter = Q()
 
     if statuses:
-        # Process statuses: remove whitespace and filter out empty strings
         processed_statuses = [s.strip() for s in statuses if s.strip()]
         if processed_statuses:
-            query = query.filter(status__in=processed_statuses)
+            base_filter &= Q(status__in=processed_statuses)
 
-    # Non-admin users can only see their own orders
     if current_user.role != "admin":
-        query = query.filter(user_id=current_user.id)
+        base_filter &= Q(user_id=current_user.id)
 
-    orders = await query.offset(offset).limit(size)
-    return orders
+    if prev_cursor:
+        try:
+            c_created_at_iso, c_id = decode_cursor(prev_cursor)
+            c_created_at = datetime.datetime.fromisoformat(c_created_at_iso)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid prev_cursor"
+            )
+        cursor_filter = Q(created_at__gt=c_created_at) | Q(
+            created_at=c_created_at, id__gt=c_id
+        )
+        query_filter = base_filter & cursor_filter
+        orders_db = (
+            await Order.filter(query_filter)
+            .prefetch_related("user", "items__item", "events")
+            .order_by("created_at", "id")
+            .limit(limit + 1)
+        )
+        has_prev = len(orders_db) > limit
+        orders_db = orders_db[:limit]
+        orders_db.reverse()
+
+        if orders_db:
+            first_order = orders_db[0]
+            last_order = orders_db[-1]
+            after_filter = base_filter & (
+                Q(created_at__lt=last_order.created_at)
+                | Q(created_at=last_order.created_at, id__lt=last_order.id)
+            )
+            has_next = await Order.filter(after_filter).exists()
+            next_cursor = (
+                encode_cursor([last_order.created_at.isoformat(), last_order.id])
+                if has_next
+                else None
+            )
+            prev_cursor = (
+                encode_cursor([first_order.created_at.isoformat(), first_order.id])
+                if has_prev
+                else None
+            )
+        else:
+            has_next = False
+            has_prev = False
+            next_cursor = None
+            prev_cursor = None
+
+    elif cursor:
+        try:
+            c_created_at_iso, c_id = decode_cursor(cursor)
+            c_created_at = datetime.datetime.fromisoformat(c_created_at_iso)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid cursor"
+            )
+        cursor_filter = Q(created_at__lt=c_created_at) | Q(
+            created_at=c_created_at, id__lt=c_id
+        )
+        query_filter = base_filter & cursor_filter
+        orders_db = (
+            await Order.filter(query_filter)
+            .prefetch_related("user", "items__item", "events")
+            .order_by("-created_at", "-id")
+            .limit(limit + 1)
+        )
+        has_next = len(orders_db) > limit
+        orders_db = orders_db[:limit]
+
+        if orders_db:
+            first_order = orders_db[0]
+            last_order = orders_db[-1]
+            before_filter = base_filter & (
+                Q(created_at__gt=first_order.created_at)
+                | Q(created_at=first_order.created_at, id__gt=first_order.id)
+            )
+            has_prev = await Order.filter(before_filter).exists()
+            next_cursor = (
+                encode_cursor([last_order.created_at.isoformat(), last_order.id])
+                if has_next
+                else None
+            )
+            prev_cursor = (
+                encode_cursor([first_order.created_at.isoformat(), first_order.id])
+                if has_prev
+                else None
+            )
+        else:
+            has_next = False
+            has_prev = False
+            next_cursor = None
+            prev_cursor = None
+
+    else:
+        orders_db = (
+            await Order.filter(base_filter)
+            .prefetch_related("user", "items__item", "events")
+            .order_by("-created_at", "-id")
+            .limit(limit + 1)
+        )
+        has_next = len(orders_db) > limit
+        orders_db = orders_db[:limit]
+        has_prev = False
+
+        if orders_db:
+            first_order = orders_db[0]
+            last_order = orders_db[-1]
+            next_cursor = (
+                encode_cursor([last_order.created_at.isoformat(), last_order.id])
+                if has_next
+                else None
+            )
+            prev_cursor = None
+        else:
+            next_cursor = None
+            prev_cursor = None
+
+    items = [await _to_order_public_schema(order) for order in orders_db]
+    return PaginatedOrderResponse(
+        items=items,
+        next_cursor=next_cursor,
+        prev_cursor=prev_cursor,
+        has_next=has_next,
+        has_prev=has_prev,
+    )
 
 
 async def create_new_order(
@@ -168,8 +289,6 @@ async def cancel_existing_order(
         )
 
     # Determine if stock should be replenished based on current order status
-    # Example: Do not replenish if already delivered or if it was shipped and policy dictates no return to stock for shipped items.
-    # This logic can be adjusted based on specific business rules.
     should_replenish = order.status not in ["delivered", "shipped"]
 
     async with in_transaction() as conn:
@@ -179,14 +298,12 @@ async def cancel_existing_order(
         await order_locked.save(using_db=conn, update_fields=["status"])
 
         if should_replenish:
-            # Fetch order items related to this order, ensuring the related inventory item is also fetched
             order_items_for_replenish = (
                 await OrderItem.filter(order_id=order_locked.id)
                 .select_related("item")
                 .using_db(conn)
             )
             for oi in order_items_for_replenish:
-                # Lock the inventory item row for update
                 inv_item = await InventoryItem.get(
                     id=oi.item_id, using_db=conn
                 ).select_for_update()
@@ -197,7 +314,7 @@ async def cancel_existing_order(
         event_data["stock_replenished"] = should_replenish
         if not (
             cancel_data and cancel_data.reason
-        ):  # Add a default message if no reason is provided
+        ):
             event_data.setdefault("message", "Order cancelled.")
 
         await OrderEvent.create(
@@ -209,7 +326,6 @@ async def cancel_existing_order(
         )
         # Transaction commits automatically
 
-    # Fetch the full order details to return
     full_order_after_cancel = await Order.get(id=order.id).prefetch_related(
         "user", "items__item", "events"
     )
@@ -245,7 +361,6 @@ async def _process_order_items(order, items, conn):
         )
 
 async def _to_order_public_schema(order: Order) -> OrderPublicSchema:
-    # Ensure related fields are prefetched before calling this
     user_resp = (
         UserResponse.model_validate(order.user)
         if order.user and hasattr(order, "user")
@@ -266,7 +381,7 @@ async def _to_order_public_schema(order: Order) -> OrderPublicSchema:
     ]
 
     events_resp = []
-    if hasattr(order, "events"):  # Check if events relation is loaded
+    if hasattr(order, "events"):
         events_resp = [
             OrderEventPublicSchema.model_validate(e) for e in await order.events.all()
         ]

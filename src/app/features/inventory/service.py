@@ -3,7 +3,9 @@ import logging
 from decimal import Decimal
 from typing import Optional, List
 from fastapi import HTTPException, status
+from tortoise.expressions import Q
 from ...common import MoneySchema
+from ...common.cursor import encode_cursor, decode_cursor
 from .models import InventoryItem, Category
 from .schemas import (
     InventoryItemCreate,
@@ -78,21 +80,24 @@ async def create_inventory_item(item_in: InventoryItemCreate) -> InventoryItemRe
 
 
 async def list_inventory_items(
-    page: int, size: int, category_public_id: Optional[str]
+    limit: int = 10,
+    cursor: Optional[str] = None,
+    prev_cursor: Optional[str] = None,
+    category_public_id: Optional[str] = None,
 ) -> PaginatedInventoryResponse:
     """
-    Lists all active inventory items.
+    Lists active inventory items using cursor-based pagination.
 
     Args:
-        page: The page number.
-        size: The number of items per page.
-        category_public_id: The public ID of the category to filter by.
+        limit: Number of items per page.
+        cursor: Forward cursor token.
+        prev_cursor: Backward cursor token.
+        category_public_id: Optional category public ID to filter by.
 
     Returns:
-        A paginated list of inventory items.
+        PaginatedInventoryResponse containing items, cursors, and progress flags.
     """
-    offset = (page - 1) * size
-    filters = {"deleted_at__isnull": True}
+    base_filter = Q(deleted_at__isnull=True)
     if category_public_id:
         category = await Category.get_or_none(public_id=category_public_id)
         if not category:
@@ -100,19 +105,113 @@ async def list_inventory_items(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Category {category_public_id} not found",
             )
-        filters["category_id"] = category.id
+        base_filter &= Q(category_id=category.id)
 
-    items_db = (
-        await InventoryItem.filter(**filters)
-        .prefetch_related("category")
-        .order_by("name")
-        .offset(offset)
-        .limit(size)
-    )
-    total = await InventoryItem.filter(**filters).count()
+    if prev_cursor:
+        try:
+            c_name, c_id = decode_cursor(prev_cursor)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid prev_cursor"
+            )
+        cursor_filter = Q(name__lt=c_name) | Q(name=c_name, id__lt=c_id)
+        query_filter = base_filter & cursor_filter
+        items_db = (
+            await InventoryItem.filter(query_filter)
+            .prefetch_related("category")
+            .order_by("-name", "-id")
+            .limit(limit + 1)
+        )
+        has_prev = len(items_db) > limit
+        items_db = items_db[:limit]
+        items_db.reverse()
+
+        if items_db:
+            first_item = items_db[0]
+            last_item = items_db[-1]
+            after_filter = base_filter & (
+                Q(name__gt=last_item.name) | Q(name=last_item.name, id__gt=last_item.id)
+            )
+            has_next = await InventoryItem.filter(after_filter).exists()
+            next_cursor = (
+                encode_cursor([last_item.name, last_item.id]) if has_next else None
+            )
+            prev_cursor = (
+                encode_cursor([first_item.name, first_item.id]) if has_prev else None
+            )
+        else:
+            has_next = False
+            has_prev = False
+            next_cursor = None
+            prev_cursor = None
+
+    elif cursor:
+        try:
+            c_name, c_id = decode_cursor(cursor)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid cursor"
+            )
+        cursor_filter = Q(name__gt=c_name) | Q(name=c_name, id__gt=c_id)
+        query_filter = base_filter & cursor_filter
+        items_db = (
+            await InventoryItem.filter(query_filter)
+            .prefetch_related("category")
+            .order_by("name", "id")
+            .limit(limit + 1)
+        )
+        has_next = len(items_db) > limit
+        items_db = items_db[:limit]
+
+        if items_db:
+            first_item = items_db[0]
+            last_item = items_db[-1]
+            before_filter = base_filter & (
+                Q(name__lt=first_item.name)
+                | Q(name=first_item.name, id__lt=first_item.id)
+            )
+            has_prev = await InventoryItem.filter(before_filter).exists()
+            next_cursor = (
+                encode_cursor([last_item.name, last_item.id]) if has_next else None
+            )
+            prev_cursor = (
+                encode_cursor([first_item.name, first_item.id]) if has_prev else None
+            )
+        else:
+            has_next = False
+            has_prev = False
+            next_cursor = None
+            prev_cursor = None
+
+    else:
+        items_db = (
+            await InventoryItem.filter(base_filter)
+            .prefetch_related("category")
+            .order_by("name", "id")
+            .limit(limit + 1)
+        )
+        has_next = len(items_db) > limit
+        items_db = items_db[:limit]
+        has_prev = False
+
+        if items_db:
+            first_item = items_db[0]
+            last_item = items_db[-1]
+            next_cursor = (
+                encode_cursor([last_item.name, last_item.id]) if has_next else None
+            )
+            prev_cursor = None
+        else:
+            next_cursor = None
+            prev_cursor = None
+
     response_items = [_to_inventory_response(item) for item in items_db]
     return PaginatedInventoryResponse(
-        items=response_items, total=total, page=page, size=size
+        items=response_items,
+        next_cursor=next_cursor,
+        prev_cursor=prev_cursor,
+        has_next=has_next,
+        has_prev=has_prev,
     )
 
 
