@@ -3,24 +3,19 @@ from fastapi import (
     Depends,
     status,
     Query,
-)  # HTTPException kept for FastAPI direct use
+)
 from typing import List, Optional, Annotated
 
-# Models from this feature and related features
-# from .models import Order # No longer directly used in router
-from ..auth.models import User as AuthUser  # User model for auth
+from ..auth.models import User as AuthUser
 
-# Schemas from this feature and related features
 from .schemas import (
     OrderCreateSchema,
     OrderPublicSchema,
-    # OrderItemPublicSchema, OrderEventPublicSchema, # Moved to service.py
     OrderShipRequestSchema,
     OrderCancelRequestSchema,
+    PaginatedOrderResponse,
 )
-# from ..auth.schemas import UserResponse # Moved to service.py
 
-# Service imports
 from .service import (
     _to_order_public_schema,
     create_new_order,
@@ -30,13 +25,7 @@ from .service import (
     cancel_existing_order,
 )
 
-# Auth dependencies
 from ..auth.security import get_current_active_user, get_current_active_admin_user
-
-# Utilities
-# (generate_ksuid moved to service layer)
-
-# logger = logging.getLogger(__name__) # Not used
 
 router = APIRouter(
     prefix="/orders",
@@ -54,27 +43,30 @@ async def create_order(
 
     Requires an authenticated user.
     """
-    # The core order creation logic is now in the service layer
     new_order = await create_new_order(order_data, current_user)
-
-    # Convert the Order model instance to an OrderPublicSchema for the response
     return await _to_order_public_schema(new_order)
 
 
-@router.get("/", response_model=List[OrderPublicSchema])
+@router.get("/", response_model=PaginatedOrderResponse)
 async def list_orders(
     current_user: Annotated[AuthUser, Depends(get_current_active_user)],
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    limit: int = Query(10, ge=1, le=100, description="Number of items per page"),
+    cursor: Optional[str] = Query(None, description="Forward cursor for pagination"),
+    prev_cursor: Optional[str] = Query(None, description="Backward cursor for pagination"),
     statuses: Optional[List[str]] = Query(None),
 ):
     """
-    Lists all orders for the current user.
+    Lists orders for the current user using cursor-based pagination.
 
     Admins can see all orders.
     """
-    orders_list = await get_all_orders(current_user, page, size, statuses)
-    return [await _to_order_public_schema(order) for order in orders_list]
+    return await get_all_orders(
+        current_user=current_user,
+        limit=limit,
+        cursor=cursor,
+        prev_cursor=prev_cursor,
+        statuses=statuses,
+    )
 
 
 @router.get("/{order_public_id}", response_model=OrderPublicSchema)
@@ -94,7 +86,7 @@ async def ship_order(
     order_public_id: str,
     current_admin: Annotated[
         AuthUser, Depends(get_current_active_admin_user)
-    ],  # AuthZ handled by Depends
+    ],
     ship_data: Optional[OrderShipRequestSchema] = None,
 ):
     """
@@ -111,7 +103,7 @@ async def cancel_order(
     order_public_id: str,
     current_admin: Annotated[
         AuthUser, Depends(get_current_active_admin_user)
-    ],  # AuthZ handled by Depends
+    ],
     cancel_data: Optional[OrderCancelRequestSchema] = None,
 ):
     """

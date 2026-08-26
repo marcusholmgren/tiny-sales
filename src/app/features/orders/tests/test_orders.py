@@ -584,9 +584,9 @@ async def test_list_orders_no_status_filter_user(
     )
     assert response.status_code == 200, response.text
     data = response.json()
-    order_ids_returned = {order["public_id"] for order in data}
+    order_ids_returned = {order["public_id"] for order in data["items"]}
 
-    assert len(data) == 2
+    assert len(data["items"]) == 2
     assert order_u1_s1.public_id in order_ids_returned
     assert order_u1_s2.public_id in order_ids_returned
 
@@ -658,10 +658,10 @@ async def test_list_orders_no_status_filter_admin(
     )
     assert response.status_code == 200, response.text
     data = response.json()
-    order_ids_returned = {order["public_id"] for order in data}
+    order_ids_returned = {order["public_id"] for order in data["items"]}
 
     # Admin should see all orders created in this scope
-    assert len(data) >= 3  # Could be more if other tests created orders not cleaned up
+    assert len(data["items"]) >= 3  # Could be more if other tests created orders not cleaned up
     assert order_u1_s1.public_id in order_ids_returned
     assert order_admin_s1.public_id in order_ids_returned
     assert order_admin_s2.public_id in order_ids_returned
@@ -687,12 +687,12 @@ async def test_list_orders_single_status_filter_user(
     )
     assert response.status_code == 200, response.text
     data = response.json()
-    order_ids_returned = {order["public_id"] for order in data}
+    order_ids_returned = {order["public_id"] for order in data["items"]}
 
-    assert len(data) == 2
+    assert len(data["items"]) == 2
     assert order_u1_placed.public_id in order_ids_returned
     assert order_u1_shipped.public_id in order_ids_returned
-    assert data[0]["status"] == "placed"
+    assert data["items"][0]["status"] == "placed"
 
 
 async def test_list_orders_single_status_filter_admin(
@@ -731,14 +731,14 @@ async def test_list_orders_single_status_filter_admin(
     )
     assert response.status_code == 200, response.text
     data = response.json()
-    order_ids_returned = {order["public_id"] for order in data}
+    order_ids_returned = {order["public_id"] for order in data["items"]}
 
-    assert len(data) == 0
+    assert len(data["items"]) == 0
     # TODO needs attention to order update helper function
     # assert order_admin_shipped.public_id in order_ids_returned, "Admin order shipped"
     # assert order_u1_shipped_too.public_id in order_ids_returned, "User 1 oder shipped"
     assert order_u1_placed.public_id not in order_ids_returned, "User 1 order placed"
-    for order_data in data:
+    for order_data in data["items"]:
         assert order_data["status"] == "shipped"
 
 
@@ -767,10 +767,10 @@ async def test_list_orders_multiple_status_filter_user(
     )
     assert response.status_code == 200, response.text
     data = response.json()
-    order_ids_returned = {order["public_id"] for order in data}
-    statuses_returned = {order["status"] for order in data}
+    order_ids_returned = {order["public_id"] for order in data["items"]}
+    statuses_returned = {order["status"] for order in data["items"]}
 
-    assert len(data) == 3
+    assert len(data["items"]) == 3
     assert order_u1_placed.public_id in order_ids_returned
     assert order_u1_shipped.public_id in order_ids_returned
     assert order_u1_cancelled.public_id in order_ids_returned
@@ -822,11 +822,11 @@ async def test_list_orders_multiple_status_filter_admin(
     response = await admin_client.get("/api/v1/orders/?statuses=placed&statuses=cancelled")
     assert response.status_code == 200, response.text
     data = response.json()
-    order_ids_returned = {order["public_id"] for order in data}
-    statuses_returned = {order["status"] for order in data}
+    order_ids_returned = {order["public_id"] for order in data["items"]}
+    statuses_returned = {order["status"] for order in data["items"]}
 
     assert (
-        len(data) == 4
+        len(data["items"]) == 4
     )  # order_u1_placed, order_admin_cancelled, order_admin_placed_too
     assert order_u1_placed.public_id in order_ids_returned
     assert order_admin_cancelled.public_id in order_ids_returned
@@ -854,7 +854,7 @@ async def test_list_orders_status_filter_no_match_user(
     )
     assert response.status_code == 200, response.text
     data = response.json()
-    assert len(data) == 0
+    assert len(data["items"]) == 0
 
 
 async def test_list_orders_status_filter_no_match_admin(
@@ -876,7 +876,7 @@ async def test_list_orders_status_filter_no_match_admin(
     )
     assert response.status_code == 200, response.text
     data = response.json()
-    assert len(data) == 0
+    assert len(data["items"]) == 0
 
 
 async def test_list_orders_status_filter_empty_string_admin(
@@ -911,9 +911,9 @@ async def test_list_orders_status_filter_empty_string_admin(
     )  # Empty status query
     assert response.status_code == 200, response.text
     data = response.json()
-    order_ids_returned = {order["public_id"] for order in data}
+    order_ids_returned = {order["public_id"] for order in data["items"]}
 
-    assert len(data) >= 2  # Should return all orders visible to admin
+    assert len(data["items"]) >= 2  # Should return all orders visible to admin
     assert order_u1_s1.public_id in order_ids_returned
     assert order_admin_s1.public_id in order_ids_returned
 
@@ -944,10 +944,10 @@ async def test_list_orders_status_filter_with_spaces_user(
     )  # Statuses with spaces
     assert response.status_code == 200, response.text
     data = response.json()
-    order_ids_returned = {order["public_id"] for order in data}
-    statuses_returned = {order["status"] for order in data}
+    order_ids_returned = {order["public_id"] for order in data["items"]}
+    statuses_returned = {order["status"] for order in data["items"]}
 
-    assert len(data) == 2
+    assert len(data["items"]) == 2
     assert order_u1_placed.public_id in order_ids_returned
     assert order_u1_shipped.public_id in order_ids_returned
     assert "placed" in statuses_returned
@@ -966,3 +966,64 @@ async def test_list_orders_status_filter_with_spaces_user(
 # are provided by conftest.py or a similar mechanism.
 # The `create_order_with_status` helper uses the passed client_fixture (e.g. `client` or `admin_client`)
 # to create orders, so the order's `user_id` will be that of the authenticated user for that client.
+
+
+async def test_list_orders_cursor_navigation(
+    client: AsyncClient, test_user_customer_token
+):
+    inv_item1 = await setup_test_inventory_item()
+    inv_item2 = await setup_test_inventory_item()
+    inv_item3 = await setup_test_inventory_item()
+
+    (token, test_user) = test_user_customer_token
+
+    order1 = await create_order_with_status(
+        client, test_user.id, token, inv_item1.public_id, "placed", "Cursor Order 1"
+    )
+    order2 = await create_order_with_status(
+        client, test_user.id, token, inv_item2.public_id, "placed", "Cursor Order 2"
+    )
+    order3 = await create_order_with_status(
+        client, test_user.id, token, inv_item3.public_id, "placed", "Cursor Order 3"
+    )
+
+    # Page 1 (limit 2) - should return order3 and order2 (newest first)
+    res1 = await client.get(
+        "/api/v1/orders/?limit=2", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert res1.status_code == 200
+    page1 = res1.json()
+    assert len(page1["items"]) == 2
+    assert page1["items"][0]["public_id"] == order3.public_id
+    assert page1["items"][1]["public_id"] == order2.public_id
+    assert page1["has_next"] is True
+    assert page1["has_prev"] is False
+    assert page1["next_cursor"] is not None
+    assert page1["prev_cursor"] is None
+
+    # Page 2 (forward navigation) - should return order1
+    res2 = await client.get(
+        f"/api/v1/orders/?limit=2&cursor={page1['next_cursor']}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res2.status_code == 200
+    page2 = res2.json()
+    assert len(page2["items"]) == 1
+    assert page2["items"][0]["public_id"] == order1.public_id
+    assert page2["has_next"] is False
+    assert page2["has_prev"] is True
+    assert page2["next_cursor"] is None
+    assert page2["prev_cursor"] is not None
+
+    # Back to Page 1 (backward navigation)
+    res_back = await client.get(
+        f"/api/v1/orders/?limit=2&prev_cursor={page2['prev_cursor']}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res_back.status_code == 200
+    page_back = res_back.json()
+    assert len(page_back["items"]) == 2
+    assert page_back["items"][0]["public_id"] == order3.public_id
+    assert page_back["items"][1]["public_id"] == order2.public_id
+    assert page_back["has_next"] is True
+    assert page_back["has_prev"] is False

@@ -4,6 +4,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 import datetime
 
+from ...common import MoneySchema
+from ...common.cursor import CursorPage
+
 
 # --- Category Schemas (defined first as InventoryItemResponse uses CategoryResponse) ---
 class CategoryBase(BaseModel):
@@ -43,9 +46,6 @@ class CategoryResponse(CategoryBase):
         from_attributes=True,
         protected_namespaces=(),
     )
-
-
-from ...common import MoneySchema
 
 
 # --- Inventory Schemas ---
@@ -103,13 +103,6 @@ class InventoryItemResponse(InventoryItemBase):
     )
 
 
-class PaginatedInventoryResponse(BaseModel):
-    items: list[InventoryItemResponse]
-    total: int
-    page: int
-    size: int
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        protected_namespaces=(),
-    )
+class PaginatedInventoryResponse(CursorPage[InventoryItemResponse]):
+    """Cursor-paginated response for inventory items."""
+    pass
