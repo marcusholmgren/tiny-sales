@@ -1027,3 +1027,40 @@ async def test_list_orders_cursor_navigation(
     assert page_back["items"][1]["public_id"] == order2.public_id
     assert page_back["has_next"] is True
     assert page_back["has_prev"] is False
+
+
+# --- Tests for Order State Machine Specific Transitions & Invalid Transitions ---
+
+
+async def test_order_state_machine_invalid_transitions(client: AsyncClient, test_user_admin_token):
+    from app.common.state_machine import InvalidTransition
+    from app.features.orders.state_machine import order_sm, OrderState, OrderEventTrigger, OrderCtx
+
+    inventory_item = await setup_test_inventory_item()
+    order = await create_order_for_test(
+        client, inventory_item.public_id, "State Machine Test User"
+    )
+
+    (admin_token, admin_user) = test_user_admin_token
+
+    # Cancel the order first
+    await client.patch(
+        f"/api/v1/orders/{order.public_id}/cancel",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+
+    # Attempting to ship a CANCELLED order via API should return 400 Bad Request
+    response = await client.patch(
+        f"/api/v1/orders/{order.public_id}/ship",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 400
+
+    # Test direct state machine invocation raising InvalidTransition for CANCELLED -> SHIP
+    ctx = OrderCtx(
+        order=None,  # Not needed for invalid lookup
+        conn=None,
+        from_state=OrderState.CANCELLED,
+    )
+    with pytest.raises(InvalidTransition):
+        order_sm.next_transition(OrderState.CANCELLED, OrderEventTrigger.SHIP)
