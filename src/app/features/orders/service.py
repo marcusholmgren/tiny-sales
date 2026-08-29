@@ -1,3 +1,5 @@
+"""Service functions for order management feature."""
+
 # External dependencies
 import datetime
 from tortoise.transactions import in_transaction
@@ -25,6 +27,10 @@ from .schemas import (
 )
 from ..auth.schemas import UserResponse  # For embedding in OrderPublicSchema
 
+# State Machine imports
+from ...common.state_machine import InvalidTransition
+from .state_machine import OrderState, OrderEventTrigger, OrderCtx, order_sm
+
 # Utilities
 from ...common.models import generate_ksuid  # KSUID generation
 from ...common import MoneySchema
@@ -32,8 +38,8 @@ from ...common.cursor import encode_cursor, decode_cursor
 
 
 async def get_order_by_public_id(order_public_id: str, current_user: AuthUser) -> Order:
+    """Retrieve an order by its public ID and verify permissions."""
     try:
-        # Prefetch related fields that are likely to be used, e.g., in _to_order_public_schema
         order = await Order.get(public_id=order_public_id).prefetch_related(
             "user", "items__item", "events"
         )
@@ -43,7 +49,6 @@ async def get_order_by_public_id(order_public_id: str, current_user: AuthUser) -
             detail=f"Order {order_public_id} not found.",
         )
 
-    # Authorization check: Admin can see any order, regular users only their own.
     if current_user.role != "admin" and order.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -60,6 +65,7 @@ async def get_all_orders(
     prev_cursor: Optional[str] = None,
     statuses: Optional[List[str]] = None,
 ) -> PaginatedOrderResponse:
+    """Retrieve a paginated list of orders for the user/admin."""
     base_filter = Q()
 
     if statuses:
@@ -198,6 +204,7 @@ async def get_all_orders(
 async def create_new_order(
     order_data: OrderCreateSchema, current_user: AuthUser
 ) -> Order:
+    """Create a new order using the state machine."""
     async with in_transaction() as conn:
         new_order_id_str = await Order.generate_next_order_id()
         order = await Order.create(
@@ -206,23 +213,31 @@ async def create_new_order(
             contact_name=order_data.contact_name,
             contact_email=order_data.contact_email,
             delivery_address=order_data.delivery_address,
-            status="placed",
+            status=OrderState.PENDING_PAYMENT.value,
             user=current_user,
             using_db=conn,
         )
-        await _process_order_items(order, order_data.items, conn)
-        await OrderEvent.create(
-            public_id=generate_ksuid(),
-            order=order,
-            event_type="order_placed",
-            data={"message": "Order created successfully."},
-            using_db=conn,
-        )
-        # No explicit commit needed, transaction context manager handles it.
 
-    # Fetch the full order with relations for response after transaction commits
-    # This is important to ensure all related data (user, items, events) is loaded
-    # before it's passed to _to_order_public_schema or used otherwise.
+        curr_state = OrderState(order.status)
+        ctx = OrderCtx(
+            order=order,
+            conn=conn,
+            from_state=curr_state,
+            create_data=order_data,
+        )
+
+        try:
+            next_state = await order_sm.ahandle(
+                ctx, curr_state, OrderEventTrigger.PLACE
+            )
+        except InvalidTransition as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            )
+
+        order.status = next_state.value
+        await order.save(using_db=conn, update_fields=["status"])
+
     full_order = await Order.get(id=order.id).prefetch_related(
         "user", "items__item", "events"
     )
@@ -232,38 +247,37 @@ async def create_new_order(
 async def ship_existing_order(
     order_public_id: str, ship_data: Optional[OrderShipRequestSchema]
 ) -> Order:
+    """Mark an existing order as shipped using the state machine."""
     order = await Order.get_or_none(public_id=order_public_id)
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Order not found."
         )
-    if order.status in ["shipped", "cancelled"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Order is already {order.status}.",
-        )
 
     async with in_transaction() as conn:
-        # Lock the order row for update
         order_locked = await Order.get(id=order.id, using_db=conn).select_for_update()
 
-        order_locked.status = "shipped"
+        curr_state = OrderState(order_locked.status)
+        ctx = OrderCtx(
+            order=order_locked,
+            conn=conn,
+            from_state=curr_state,
+            ship_data=ship_data,
+        )
+
+        try:
+            next_state = await order_sm.ahandle(
+                ctx, curr_state, OrderEventTrigger.SHIP
+            )
+        except InvalidTransition:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Order is already {order_locked.status}.",
+            )
+
+        order_locked.status = next_state.value
         await order_locked.save(using_db=conn, update_fields=["status"])
 
-        event_data = ship_data.model_dump(exclude_none=True) if ship_data else {}
-        if not event_data:  # Ensure there's always a message
-            event_data = {"message": "Order marked as shipped."}
-
-        await OrderEvent.create(
-            public_id=generate_ksuid(),
-            order=order_locked,
-            event_type="order_shipped",
-            data=event_data,
-            using_db=conn,
-        )
-        # Transaction is committed automatically upon exiting the 'async with' block
-
-    # Fetch the full order with all relations to return a complete view
     full_order_after_ship = await Order.get(id=order.id).prefetch_related(
         "user", "items__item", "events"
     )
@@ -273,58 +287,38 @@ async def ship_existing_order(
 async def cancel_existing_order(
     order_public_id: str, cancel_data: Optional[OrderCancelRequestSchema]
 ) -> Order:
+    """Cancel an existing order using the state machine."""
     order = await Order.get_or_none(public_id=order_public_id)
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Order not found."
         )
-    if order.status == "cancelled":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Order already cancelled."
-        )
-    if order.status == "shipped" and not (cancel_data and cancel_data.reason):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Shipped order cancellation requires a reason.",
-        )
-
-    # Determine if stock should be replenished based on current order status
-    should_replenish = order.status not in ["delivered", "shipped"]
 
     async with in_transaction() as conn:
         order_locked = await Order.get(id=order.id, using_db=conn).select_for_update()
 
-        order_locked.status = "cancelled"
-        await order_locked.save(using_db=conn, update_fields=["status"])
-
-        if should_replenish:
-            order_items_for_replenish = (
-                await OrderItem.filter(order_id=order_locked.id)
-                .select_related("item")
-                .using_db(conn)
-            )
-            for oi in order_items_for_replenish:
-                inv_item = await InventoryItem.get(
-                    id=oi.item_id, using_db=conn
-                ).select_for_update()
-                inv_item.quantity += oi.quantity
-                await inv_item.save(using_db=conn, update_fields=["quantity"])
-
-        event_data = cancel_data.model_dump(exclude_none=True) if cancel_data else {}
-        event_data["stock_replenished"] = should_replenish
-        if not (
-            cancel_data and cancel_data.reason
-        ):
-            event_data.setdefault("message", "Order cancelled.")
-
-        await OrderEvent.create(
-            public_id=generate_ksuid(),
+        curr_state = OrderState(order_locked.status)
+        ctx = OrderCtx(
             order=order_locked,
-            event_type="order_cancelled",
-            data=event_data,
-            using_db=conn,
+            conn=conn,
+            from_state=curr_state,
+            cancel_data=cancel_data,
         )
-        # Transaction commits automatically
+
+        try:
+            next_state = await order_sm.ahandle(
+                ctx, curr_state, OrderEventTrigger.CANCEL
+            )
+        except InvalidTransition:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Order already cancelled."
+                if curr_state == OrderState.CANCELLED
+                else f"Cannot cancel order in state {curr_state.value}.",
+            )
+
+        order_locked.status = next_state.value
+        await order_locked.save(using_db=conn, update_fields=["status"])
 
     full_order_after_cancel = await Order.get(id=order.id).prefetch_related(
         "user", "items__item", "events"
@@ -332,35 +326,8 @@ async def cancel_existing_order(
     return full_order_after_cancel
 
 
-async def _process_order_items(order, items, conn):
-    for item_data in items:
-        inventory_item = await InventoryItem.get_or_none(
-            public_id=item_data.product_public_id, using_db=conn
-        ).select_for_update()
-        if not inventory_item:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Item {item_data.product_public_id} not found.",
-            )
-        if inventory_item.quantity < item_data.quantity:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Not enough stock for {inventory_item.name}.",
-            )
-
-        inventory_item.quantity -= item_data.quantity
-        await inventory_item.save(using_db=conn, update_fields=["quantity"])
-        await OrderItem.create(
-            public_id=generate_ksuid(),
-            order=order,
-            item_id=inventory_item.id,
-            quantity=item_data.quantity,
-            price_amount=item_data.price_at_purchase.amount,
-            price_currency=item_data.price_at_purchase.currency,
-            using_db=conn,
-        )
-
 async def _to_order_public_schema(order: Order) -> OrderPublicSchema:
+    """Convert an Order ORM model into OrderPublicSchema."""
     user_resp = (
         UserResponse.model_validate(order.user)
         if order.user and hasattr(order, "user")
