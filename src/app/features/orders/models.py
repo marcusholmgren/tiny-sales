@@ -1,5 +1,10 @@
 import datetime
 from tortoise import fields, models
+from decimal import Decimal
+
+from ...common import Currency, Money
+from ..auth.models import User
+from ..inventory.models import InventoryItem
 from ...common.models import TimestampMixin, generate_ksuid
 
 
@@ -45,10 +50,6 @@ class Order(TimestampMixin):
 
     class Meta:
         table = "orders"
-
-
-from decimal import Decimal
-from ...common import Currency, Money
 
 
 class OrderItem(TimestampMixin):

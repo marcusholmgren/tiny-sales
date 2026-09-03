@@ -69,7 +69,10 @@ async def test_create_order_success(client: AsyncClient):  # Changed from AsyncC
     assert len(data["items"]) == 1
     assert data["items"][0]["product_public_id"] == inventory_item.public_id
     assert data["items"][0]["quantity"] == 2
-    assert data["items"][0]["price_at_purchase"] == {"amount": "10.50", "currency": "SEK"}
+    assert data["items"][0]["price_at_purchase"] == {
+        "amount": "10.50",
+        "currency": "SEK",
+    }
 
     # Assuming events are part of the response schema
     assert len(data["events"]) >= 1  # At least 'order_placed'
@@ -661,7 +664,9 @@ async def test_list_orders_no_status_filter_admin(
     order_ids_returned = {order["public_id"] for order in data["items"]}
 
     # Admin should see all orders created in this scope
-    assert len(data["items"]) >= 3  # Could be more if other tests created orders not cleaned up
+    assert (
+        len(data["items"]) >= 3
+    )  # Could be more if other tests created orders not cleaned up
     assert order_u1_s1.public_id in order_ids_returned
     assert order_admin_s1.public_id in order_ids_returned
     assert order_admin_s2.public_id in order_ids_returned
@@ -819,7 +824,9 @@ async def test_list_orders_multiple_status_filter_admin(
         "Admin Placed Too",
     )
 
-    response = await admin_client.get("/api/v1/orders/?statuses=placed&statuses=cancelled")
+    response = await admin_client.get(
+        "/api/v1/orders/?statuses=placed&statuses=cancelled"
+    )
     assert response.status_code == 200, response.text
     data = response.json()
     order_ids_returned = {order["public_id"] for order in data["items"]}
@@ -1032,9 +1039,16 @@ async def test_list_orders_cursor_navigation(
 # --- Tests for Order State Machine Specific Transitions & Invalid Transitions ---
 
 
-async def test_order_state_machine_invalid_transitions(client: AsyncClient, test_user_admin_token):
+async def test_order_state_machine_invalid_transitions(
+    client: AsyncClient, test_user_admin_token
+):
     from app.common.state_machine import InvalidTransition
-    from app.features.orders.state_machine import order_sm, OrderState, OrderEventTrigger, OrderCtx
+    from app.features.orders.state_machine import (
+        order_sm,
+        OrderState,
+        OrderEventTrigger,
+        OrderCtx,
+    )
 
     inventory_item = await setup_test_inventory_item()
     order = await create_order_for_test(
@@ -1057,7 +1071,7 @@ async def test_order_state_machine_invalid_transitions(client: AsyncClient, test
     assert response.status_code == 400
 
     # Test direct state machine invocation raising InvalidTransition for CANCELLED -> SHIP
-    ctx = OrderCtx(
+    _ctx = OrderCtx(
         order=None,  # Not needed for invalid lookup
         conn=None,
         from_state=OrderState.CANCELLED,

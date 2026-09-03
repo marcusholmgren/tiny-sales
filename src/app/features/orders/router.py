@@ -52,7 +52,9 @@ async def list_orders(
     current_user: Annotated[AuthUser, Depends(get_current_active_user)],
     limit: int = Query(10, ge=1, le=100, description="Number of items per page"),
     cursor: Optional[str] = Query(None, description="Forward cursor for pagination"),
-    prev_cursor: Optional[str] = Query(None, description="Backward cursor for pagination"),
+    prev_cursor: Optional[str] = Query(
+        None, description="Backward cursor for pagination"
+    ),
     statuses: Optional[List[str]] = Query(None),
 ):
     """
@@ -84,9 +86,7 @@ async def get_order(
 @router.patch("/{order_public_id}/ship", response_model=OrderPublicSchema)
 async def ship_order(
     order_public_id: str,
-    current_admin: Annotated[
-        AuthUser, Depends(get_current_active_admin_user)
-    ],
+    current_admin: Annotated[AuthUser, Depends(get_current_active_admin_user)],
     ship_data: Optional[OrderShipRequestSchema] = None,
 ):
     """
@@ -101,9 +101,7 @@ async def ship_order(
 @router.patch("/{order_public_id}/cancel", response_model=OrderPublicSchema)
 async def cancel_order(
     order_public_id: str,
-    current_admin: Annotated[
-        AuthUser, Depends(get_current_active_admin_user)
-    ],
+    current_admin: Annotated[AuthUser, Depends(get_current_active_admin_user)],
     cancel_data: Optional[OrderCancelRequestSchema] = None,
 ):
     """

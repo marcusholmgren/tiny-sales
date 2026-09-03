@@ -32,7 +32,7 @@ def _to_inventory_response(inventory_item: InventoryItem) -> InventoryItemRespon
         quantity=inventory_item.quantity,
         current_price=MoneySchema(
             amount=inventory_item.current_price.amount,
-            currency=inventory_item.current_price.currency.code
+            currency=inventory_item.current_price.currency.code,
         ),
         category=category_data,
         created_at=inventory_item.created_at,

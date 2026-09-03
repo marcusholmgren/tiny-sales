@@ -1,4 +1,3 @@
-import os
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -15,9 +14,7 @@ from .features.reports.router import router as reports_router
 logger = logging.getLogger("app.main")  # This logger will inherit from 'app'
 
 TORTOISE_ORM_CONFIG = {
-    "connections": {
-        "default": settings.database_url
-    },
+    "connections": {"default": settings.database_url},
     "apps": {
         "models": {  # This is an app label, can be anything
             "models": [

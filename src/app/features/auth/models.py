@@ -1,6 +1,8 @@
 """Data models for authentication and authorization, including the User model."""
 
 from tortoise import fields
+
+from ..orders.models import Order
 from ...common.models import TimestampMixin, generate_ksuid
 
 

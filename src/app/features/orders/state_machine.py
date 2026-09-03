@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Any, Optional
 from fastapi import HTTPException, status
 
-from ...common.state_machine import StateMachine, InvalidTransition
+from ...common.state_machine import StateMachine
 from ...common.models import generate_ksuid
 from .models import Order, OrderItem, OrderEvent
 from ..inventory.models import InventoryItem
@@ -100,9 +100,7 @@ async def on_place(ctx: OrderCtx) -> None:
 )
 async def on_ship(ctx: OrderCtx) -> None:
     """Action executed when an order is shipped."""
-    event_data = (
-        ctx.ship_data.model_dump(exclude_none=True) if ctx.ship_data else {}
-    )
+    event_data = ctx.ship_data.model_dump(exclude_none=True) if ctx.ship_data else {}
     if not event_data:
         event_data = {"message": "Order marked as shipped."}
 

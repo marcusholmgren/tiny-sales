@@ -19,7 +19,6 @@ Key Fixtures:
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 
-import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -179,7 +178,9 @@ async def admin_client(app_for_testing: FastAPI) -> AsyncGenerator[AsyncClient, 
 
 
 @pytest_asyncio.fixture(scope="function")
-async def customer_client(app_for_testing: FastAPI) -> AsyncGenerator[AsyncClient, None]:
+async def customer_client(
+    app_for_testing: FastAPI,
+) -> AsyncGenerator[AsyncClient, None]:
     """
     Provides an AsyncClient authenticated as a new customer user.
     """

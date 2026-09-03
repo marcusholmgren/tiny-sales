@@ -105,4 +105,5 @@ class InventoryItemResponse(InventoryItemBase):
 
 class PaginatedInventoryResponse(CursorPage[InventoryItemResponse]):
     """Cursor-paginated response for inventory items."""
+
     pass

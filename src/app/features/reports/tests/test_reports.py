@@ -202,7 +202,9 @@ async def test_get_sales_by_product_report(
         order=order2, item=item_a, quantity=1, price_at_purchase=11.0
     )  # 11 for A in order2
 
-    response = await admin_client.get("/api/v1/reports/sales/by-product", headers=headers)
+    response = await admin_client.get(
+        "/api/v1/reports/sales/by-product", headers=headers
+    )
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
 
@@ -288,7 +290,9 @@ async def test_get_sales_by_category_report(
     )
     await OrderItem.create(order=order, item=item_b, quantity=3, price_at_purchase=15.0)
 
-    response = await admin_client.get("/api/v1/reports/sales/by-category", headers=headers)
+    response = await admin_client.get(
+        "/api/v1/reports/sales/by-category", headers=headers
+    )
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
 
@@ -502,7 +506,9 @@ async def test_get_inventory_value_report(
         defaults={"quantity": 0, "current_price": 100.0, "category_id": cat.id},
     )
 
-    response = await admin_client.get("/api/v1/reports/inventory/value", headers=headers)
+    response = await admin_client.get(
+        "/api/v1/reports/inventory/value", headers=headers
+    )
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
 

@@ -5,14 +5,18 @@ from app.features.inventory.models import Category, InventoryItem
 @pytest_asyncio.fixture
 async def default_category() -> Category:
     """A default category that can be used in tests."""
-    category = await Category.create(name="Default Category", description="A default category")
+    category = await Category.create(
+        name="Default Category", description="A default category"
+    )
     return category
 
 
 @pytest_asyncio.fixture
 async def another_category() -> Category:
     """Another category that can be used in tests."""
-    category = await Category.create(name="Another Category", description="Another category")
+    category = await Category.create(
+        name="Another Category", description="Another category"
+    )
     return category
 
 

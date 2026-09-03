@@ -4,6 +4,8 @@ import datetime
 
 # Import UserResponse from auth feature for OrderPublicSchema
 from ..auth.schemas import UserResponse
+from ...common.cursor import CursorPage
+from ...common import MoneySchema
 
 
 # Schemas for Order Updates (PATCH requests)
@@ -26,9 +28,6 @@ class OrderItemBase(BaseModel):
         ..., description="Public KSUID of the product (InventoryItem)"
     )
     quantity: int = Field(..., gt=0, description="Quantity of the product")
-
-
-from ...common import MoneySchema
 
 
 class OrderItemCreateSchema(OrderItemBase):
@@ -88,9 +87,8 @@ class OrderPublicSchema(OrderBase):
 # If forward refs were an issue (UserResponse defined after OrderPublicSchema), rebuild would be needed.
 # OrderPublicSchema.model_rebuild()
 
-from ...common.cursor import CursorPage
-
 
 class PaginatedOrderResponse(CursorPage[OrderPublicSchema]):
     """Cursor-paginated response for orders."""
+
     pass

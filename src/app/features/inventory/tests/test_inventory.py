@@ -20,6 +20,7 @@ from app.features.inventory.schemas import (
 )
 from app.features.inventory.models import Category, InventoryItem
 
+
 @pytest.mark.asyncio
 async def test_create_category():
     """Test creating a category."""
@@ -34,7 +35,9 @@ async def test_create_category():
 @pytest.mark.asyncio
 async def test_create_category_duplicate_name():
     """Test creating a category with a duplicate name."""
-    category_in = CategoryCreate(name="Duplicate Category", description="A test category")
+    category_in = CategoryCreate(
+        name="Duplicate Category", description="A test category"
+    )
     await create_category(category_in)
     with pytest.raises(HTTPException) as exc_info:
         await create_category(category_in)
@@ -150,7 +153,9 @@ async def test_get_inventory_item_not_found():
 @pytest.mark.asyncio
 async def test_list_inventory_items(sample_inventory: list[InventoryItem]):
     """Test listing inventory items with cursor pagination."""
-    paginated_response = await list_inventory_items(limit=10, cursor=None, prev_cursor=None, category_public_id=None)
+    paginated_response = await list_inventory_items(
+        limit=10, cursor=None, prev_cursor=None, category_public_id=None
+    )
     assert len(paginated_response.items) >= len(sample_inventory)
     assert paginated_response.has_prev is False
 
@@ -200,7 +205,10 @@ async def test_list_inventory_items_by_category(
     await inventory_item_factory("Item 3", category=default_category)
 
     paginated_response = await list_inventory_items(
-        limit=10, cursor=None, prev_cursor=None, category_public_id=default_category.public_id
+        limit=10,
+        cursor=None,
+        prev_cursor=None,
+        category_public_id=default_category.public_id,
     )
     assert len(paginated_response.items) == 2
     for item in paginated_response.items:

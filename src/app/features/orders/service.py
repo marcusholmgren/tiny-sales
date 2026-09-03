@@ -11,8 +11,7 @@ from fastapi import HTTPException, status  # For exceptions, status codes
 from typing import List, Optional
 
 # Models from this feature and related features
-from .models import Order, OrderItem, OrderEvent  # Local models
-from ..inventory.models import InventoryItem  # Related model
+from .models import Order  # Local models
 from ..auth.models import User as AuthUser  # User model for auth
 
 # Schemas from this feature and related features
@@ -266,9 +265,7 @@ async def ship_existing_order(
         )
 
         try:
-            next_state = await order_sm.ahandle(
-                ctx, curr_state, OrderEventTrigger.SHIP
-            )
+            next_state = await order_sm.ahandle(ctx, curr_state, OrderEventTrigger.SHIP)
         except InvalidTransition:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

@@ -1,6 +1,10 @@
 """Data models for inventory management, including Category and InventoryItem."""
 
 from tortoise import fields
+from decimal import Decimal
+
+from ...common import Currency, Money
+from ..orders.models import OrderItem
 from ...common.models import TimestampMixin, generate_ksuid
 
 
@@ -22,10 +26,6 @@ class Category(TimestampMixin):
 
     class Meta:
         table = "categories"
-
-
-from decimal import Decimal
-from ...common import Currency, Money
 
 
 class InventoryItem(TimestampMixin):

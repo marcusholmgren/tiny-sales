@@ -26,7 +26,9 @@ class MoneySchema(BaseModel):
             return {"amount": Decimal(str(data)), "currency": "SEK"}
         elif isinstance(data, dict):
             # Allow strings, floats, ints, or Decimals for amount in dictionary inputs
-            if "amount" in data and isinstance(data["amount"], (int, float, Decimal, str)):
+            if "amount" in data and isinstance(
+                data["amount"], (int, float, Decimal, str)
+            ):
                 data = data.copy()
                 data["amount"] = Decimal(str(data["amount"]))
             if "currency" not in data:

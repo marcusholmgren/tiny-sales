@@ -10,7 +10,7 @@ import datetime
 import logging
 from typing import Optional
 from tortoise.functions import Count, Sum
-from tortoise.expressions import Q, F, RawSQL
+from tortoise.expressions import Q, RawSQL
 
 # Models from other features
 from ..auth.models import User as AuthUser
@@ -62,9 +62,7 @@ async def generate_total_sales_report(
             - start_date: The start date used for filtering (if provided)
             - end_date: The end date used for filtering (if provided)
     """
-    filters = {
-        "order__status__in": ["shipped", "completed"]
-    }
+    filters = {"order__status__in": ["shipped", "completed"]}
     if start_date:
         filters["order__created_at__gte"] = start_date
     if end_date:
@@ -73,11 +71,18 @@ async def generate_total_sales_report(
     if current_user.role != "admin":
         filters["order__user_id"] = current_user.id
 
-    totals = await OrderItem.filter(**filters).annotate(
-        total_revenue=Sum(RawSQL("order_items.price_amount * order_items.quantity")),
-        item_count=Sum("quantity"),
-        order_count=Count("order_id", distinct=True)
-    ).group_by("order__status").values("total_revenue", "item_count", "order_count")
+    totals = (
+        await OrderItem.filter(**filters)
+        .annotate(
+            total_revenue=Sum(
+                RawSQL("order_items.price_amount * order_items.quantity")
+            ),
+            item_count=Sum("quantity"),
+            order_count=Count("order_id", distinct=True),
+        )
+        .group_by("order__status")
+        .values("total_revenue", "item_count", "order_count")
+    )
 
     total_revenue = 0.0
     item_count = 0
@@ -131,16 +136,21 @@ async def generate_sales_by_product_report(
     if current_user.role != "admin":
         order_filter &= Q(order__user_id=current_user.id)
 
-    results = await OrderItem.filter(order_filter).annotate(
-        total_quantity_sold=Sum("quantity"),
-        total_revenue=Sum(RawSQL("order_items.price_amount * order_items.quantity")),
-    ).group_by(
-        "item__public_id", "item__name"
-    ).values(
-        "item__public_id",
-        "item__name",
-        "total_quantity_sold",
-        "total_revenue",
+    results = (
+        await OrderItem.filter(order_filter)
+        .annotate(
+            total_quantity_sold=Sum("quantity"),
+            total_revenue=Sum(
+                RawSQL("order_items.price_amount * order_items.quantity")
+            ),
+        )
+        .group_by("item__public_id", "item__name")
+        .values(
+            "item__public_id",
+            "item__name",
+            "total_quantity_sold",
+            "total_revenue",
+        )
     )
 
     response_items = [
@@ -195,16 +205,21 @@ async def generate_sales_by_category_report(
     if current_user.role != "admin":
         order_filter &= Q(order__user_id=current_user.id)
 
-    results = await OrderItem.filter(order_filter).annotate(
-        total_quantity_sold=Sum("quantity"),
-        total_revenue=Sum(RawSQL("order_items.price_amount * order_items.quantity")),
-    ).group_by(
-        "item__category__public_id", "item__category__name"
-    ).values(
-        "item__category__public_id",
-        "item__category__name",
-        "total_quantity_sold",
-        "total_revenue",
+    results = (
+        await OrderItem.filter(order_filter)
+        .annotate(
+            total_quantity_sold=Sum("quantity"),
+            total_revenue=Sum(
+                RawSQL("order_items.price_amount * order_items.quantity")
+            ),
+        )
+        .group_by("item__category__public_id", "item__category__name")
+        .values(
+            "item__category__public_id",
+            "item__category__name",
+            "total_quantity_sold",
+            "total_revenue",
+        )
     )
 
     category_sales_data = {}

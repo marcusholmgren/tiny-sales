@@ -1,4 +1,5 @@
 """API routes for managing inventory items and categories."""
+
 from fastapi import APIRouter, status, Query, Depends
 from typing import Optional, List, Annotated
 
@@ -54,7 +55,9 @@ async def create_inventory_item(
 async def list_inventory_items(
     limit: int = Query(10, ge=1, le=100, description="Number of items per page"),
     cursor: Optional[str] = Query(None, description="Forward cursor for pagination"),
-    prev_cursor: Optional[str] = Query(None, description="Backward cursor for pagination"),
+    prev_cursor: Optional[str] = Query(
+        None, description="Backward cursor for pagination"
+    ),
     category_public_id: Optional[str] = Query(
         None, description="Public ID of the category to filter by"
     ),

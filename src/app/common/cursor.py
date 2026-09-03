@@ -19,10 +19,12 @@ class CursorPage(BaseModel, Generic[T]):
         None, description="Cursor for fetching the previous page of results."
     )
     has_next: bool = Field(
-        False, description="Flag indicating if more data exists in the forward direction."
+        False,
+        description="Flag indicating if more data exists in the forward direction.",
     )
     has_prev: bool = Field(
-        False, description="Flag indicating if more data exists in the backward direction."
+        False,
+        description="Flag indicating if more data exists in the backward direction.",
     )
 
     model_config = ConfigDict(
