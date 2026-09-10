@@ -1,11 +1,14 @@
 import datetime
-from tortoise import fields, models
 from decimal import Decimal
+from typing import TYPE_CHECKING
+from tortoise import fields, models
 
 from ...common import Currency, Money
-from ..auth.models import User
-from ..inventory.models import InventoryItem
 from ...common.models import TimestampMixin, generate_ksuid
+
+if TYPE_CHECKING:
+    from ..auth.models import User
+    from ..inventory.models import InventoryItem
 
 
 # Forward references for OrderItem and OrderEvent used in Order

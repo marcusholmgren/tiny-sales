@@ -15,8 +15,8 @@ sys.path.insert(0, str(project_root))
 
 # Now imports from 'app' should work
 # from backend import models # This will be removed
-from app.features.auth.security import get_password_hash  # To hash passwords
-from app.features.auth.models import User as AuthUser  # Explicit import for User model
+from app.features.auth.security import get_password_hash  # noqa: E402 # To hash passwords
+from app.features.auth.models import User as AuthUser  # noqa: E402 # Explicit import for User model
 
 # Replicate TORTOISE_ORM_CONFIG for the CLI
 # Ensure this path is correct when running the CLI

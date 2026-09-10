@@ -1,11 +1,14 @@
 """Data models for inventory management, including Category and InventoryItem."""
 
-from tortoise import fields
 from decimal import Decimal
+from typing import TYPE_CHECKING
+from tortoise import fields
 
 from ...common import Currency, Money
-from ..orders.models import OrderItem
 from ...common.models import TimestampMixin, generate_ksuid
+
+if TYPE_CHECKING:
+    from ..orders.models import OrderItem
 
 
 # Forward reference for Category used in InventoryItem

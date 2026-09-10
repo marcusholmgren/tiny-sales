@@ -1,9 +1,13 @@
 """Data models for authentication and authorization, including the User model."""
 
+from typing import TYPE_CHECKING
+
 from tortoise import fields
 
-from ..orders.models import Order
 from ...common.models import TimestampMixin, generate_ksuid
+
+if TYPE_CHECKING:
+    from ..orders.models import Order
 
 
 class User(TimestampMixin):
