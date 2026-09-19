@@ -1,31 +1,29 @@
-from fastapi import (
-    APIRouter,
-    Depends,
-    status,
-    Query,
-)
-from typing import List, Optional, Annotated
+"""API routes for order management using command handlers."""
+
+from typing import Annotated, List, Optional
+from fastapi import APIRouter, Depends, Query, status
 
 from ..auth.models import User as AuthUser
-
+from ..auth.security import get_current_active_admin_user, get_current_active_user
+from .commands import (
+    CancelOrderCommand,
+    CancelOrderCommandHandler,
+    CreateOrderCommand,
+    CreateOrderCommandHandler,
+    GetOrderCommand,
+    GetOrderCommandHandler,
+    ListOrdersCommand,
+    ListOrdersCommandHandler,
+    ShipOrderCommand,
+    ShipOrderCommandHandler,
+)
 from .schemas import (
+    OrderCancelRequestSchema,
     OrderCreateSchema,
     OrderPublicSchema,
     OrderShipRequestSchema,
-    OrderCancelRequestSchema,
     PaginatedOrderResponse,
 )
-
-from .service import (
-    _to_order_public_schema,
-    create_new_order,
-    get_all_orders,
-    get_order_by_public_id,
-    ship_existing_order,
-    cancel_existing_order,
-)
-
-from ..auth.security import get_current_active_user, get_current_active_admin_user
 
 router = APIRouter(
     prefix="/orders",
@@ -37,19 +35,20 @@ router = APIRouter(
 async def create_order(
     order_data: OrderCreateSchema,
     current_user: Annotated[AuthUser, Depends(get_current_active_user)],
+    handler: Annotated[CreateOrderCommandHandler, Depends()],
 ):
-    """
-    Creates a new order.
+    """Creates a new order.
 
     Requires an authenticated user.
     """
-    new_order = await create_new_order(order_data, current_user)
-    return await _to_order_public_schema(new_order)
+    command = CreateOrderCommand(order_data=order_data, current_user=current_user)
+    return await handler.execute(command)
 
 
 @router.get("/", response_model=PaginatedOrderResponse)
 async def list_orders(
     current_user: Annotated[AuthUser, Depends(get_current_active_user)],
+    handler: Annotated[ListOrdersCommandHandler, Depends()],
     limit: int = Query(10, ge=1, le=100, description="Number of items per page"),
     cursor: Optional[str] = Query(None, description="Forward cursor for pagination"),
     prev_cursor: Optional[str] = Query(
@@ -57,57 +56,60 @@ async def list_orders(
     ),
     statuses: Optional[List[str]] = Query(None),
 ):
-    """
-    Lists orders for the current user using cursor-based pagination.
+    """Lists orders for the current user using cursor-based pagination.
 
     Admins can see all orders.
     """
-    return await get_all_orders(
+    command = ListOrdersCommand(
         current_user=current_user,
         limit=limit,
         cursor=cursor,
         prev_cursor=prev_cursor,
         statuses=statuses,
     )
+    return await handler.execute(command)
 
 
 @router.get("/{order_public_id}", response_model=OrderPublicSchema)
 async def get_order(
     order_public_id: str,
     current_user: Annotated[AuthUser, Depends(get_current_active_user)],
+    handler: Annotated[GetOrderCommandHandler, Depends()],
 ):
-    """
-    Retrieves a single order by its public ID.
-    """
-    order = await get_order_by_public_id(order_public_id, current_user)
-    return await _to_order_public_schema(order)
+    """Retrieves a single order by its public ID."""
+    command = GetOrderCommand(
+        order_public_id=order_public_id, current_user=current_user
+    )
+    return await handler.execute(command)
 
 
 @router.patch("/{order_public_id}/ship", response_model=OrderPublicSchema)
 async def ship_order(
     order_public_id: str,
     current_admin: Annotated[AuthUser, Depends(get_current_active_admin_user)],
+    handler: Annotated[ShipOrderCommandHandler, Depends()],
     ship_data: Optional[OrderShipRequestSchema] = None,
 ):
-    """
-    Marks an order as shipped.
+    """Marks an order as shipped.
 
     Requires admin privileges.
     """
-    shipped_order = await ship_existing_order(order_public_id, ship_data)
-    return await _to_order_public_schema(shipped_order)
+    command = ShipOrderCommand(order_public_id=order_public_id, ship_data=ship_data)
+    return await handler.execute(command)
 
 
 @router.patch("/{order_public_id}/cancel", response_model=OrderPublicSchema)
 async def cancel_order(
     order_public_id: str,
     current_admin: Annotated[AuthUser, Depends(get_current_active_admin_user)],
+    handler: Annotated[CancelOrderCommandHandler, Depends()],
     cancel_data: Optional[OrderCancelRequestSchema] = None,
 ):
-    """
-    Cancels an order.
+    """Cancels an order.
 
     Requires admin privileges.
     """
-    cancelled_order = await cancel_existing_order(order_public_id, cancel_data)
-    return await _to_order_public_schema(cancelled_order)
+    command = CancelOrderCommand(
+        order_public_id=order_public_id, cancel_data=cancel_data
+    )
+    return await handler.execute(command)
