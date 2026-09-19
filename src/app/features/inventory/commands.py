@@ -1,16 +1,15 @@
 """Command objects and handlers for inventory and category operations."""
 
 from dataclasses import dataclass
-from typing import List, Optional
 
-from app.common.commands import BaseCommand, CommandHandler
+from ...common import BaseCommand, CommandHandler
 from . import schemas, service
 
 
 # --- Inventory Commands & Handlers ---
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CreateInventoryItemCommand(BaseCommand):
     """Command payload for creating an inventory item."""
 
@@ -36,14 +35,14 @@ class CreateInventoryItemCommandHandler(
         return await service.create_inventory_item(command.item_in)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ListInventoryItemsCommand(BaseCommand):
     """Command payload for listing paginated inventory items."""
 
     limit: int = 10
-    cursor: Optional[str] = None
-    prev_cursor: Optional[str] = None
-    category_public_id: Optional[str] = None
+    cursor: str | None = None
+    prev_cursor: str | None = None
+    category_public_id: str | None = None
 
 
 class ListInventoryItemsCommandHandler(
@@ -70,7 +69,7 @@ class ListInventoryItemsCommandHandler(
         )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class GetInventoryItemCommand(BaseCommand):
     """Command payload for retrieving a specific inventory item by ID."""
 
@@ -96,7 +95,7 @@ class GetInventoryItemCommandHandler(
         return await service.get_inventory_item(command.item_public_id)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class UpdateInventoryItemCommand(BaseCommand):
     """Command payload for updating an inventory item."""
 
@@ -125,7 +124,7 @@ class UpdateInventoryItemCommandHandler(
         )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class DeleteInventoryItemCommand(BaseCommand):
     """Command payload for soft-deleting an inventory item."""
 
@@ -149,7 +148,7 @@ class DeleteInventoryItemCommandHandler(
 # --- Category Commands & Handlers ---
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CreateCategoryCommand(BaseCommand):
     """Command payload for creating a category."""
 
@@ -161,9 +160,7 @@ class CreateCategoryCommandHandler(
 ):
     """Command handler for creating a category."""
 
-    async def execute(
-        self, command: CreateCategoryCommand
-    ) -> schemas.CategoryResponse:
+    async def execute(self, command: CreateCategoryCommand) -> schemas.CategoryResponse:
         """Executes category creation.
 
         Args:
@@ -175,7 +172,7 @@ class CreateCategoryCommandHandler(
         return await service.create_category(command.category_in)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ListCategoriesCommand(BaseCommand):
     """Command payload for listing all categories."""
 
@@ -183,25 +180,25 @@ class ListCategoriesCommand(BaseCommand):
 
 
 class ListCategoriesCommandHandler(
-    CommandHandler[ListCategoriesCommand, List[schemas.CategoryResponse]]
+    CommandHandler[ListCategoriesCommand, list[schemas.CategoryResponse]]
 ):
     """Command handler for retrieving all categories."""
 
     async def execute(
         self, command: ListCategoriesCommand
-    ) -> List[schemas.CategoryResponse]:
+    ) -> list[schemas.CategoryResponse]:
         """Executes category listing.
 
         Args:
             command: The ListCategoriesCommand instance.
 
         Returns:
-            List[CategoryResponse]: List of all active categories.
+            list[CategoryResponse]: List of all active categories.
         """
         return await service.list_categories()
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class GetCategoryCommand(BaseCommand):
     """Command payload for retrieving a specific category."""
 
@@ -225,7 +222,7 @@ class GetCategoryCommandHandler(
         return await service.get_category(command.category_public_id)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class UpdateCategoryCommand(BaseCommand):
     """Command payload for updating a category."""
 
@@ -238,9 +235,7 @@ class UpdateCategoryCommandHandler(
 ):
     """Command handler for updating a category."""
 
-    async def execute(
-        self, command: UpdateCategoryCommand
-    ) -> schemas.CategoryResponse:
+    async def execute(self, command: UpdateCategoryCommand) -> schemas.CategoryResponse:
         """Executes category update.
 
         Args:
@@ -254,7 +249,7 @@ class UpdateCategoryCommandHandler(
         )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class DeleteCategoryCommand(BaseCommand):
     """Command payload for deleting a category."""
 

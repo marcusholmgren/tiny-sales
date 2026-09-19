@@ -2,6 +2,7 @@
 
 import logging
 from typing import Annotated
+
 from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -23,8 +24,8 @@ async def login_for_access_token(
     handler: Annotated[LoginCommandHandler, Depends()],
 ):
     """Authenticates a user and returns an access token."""
-    command = LoginCommand(form_data=form_data)
-    return await handler.execute(command)
+    command = LoginCommand(username=form_data.username, password=form_data.password)
+    return await handler(command)
 
 
 @router.post(
@@ -38,4 +39,4 @@ async def register_user(
 ):
     """Registers a new user."""
     command = RegisterUserCommand(user_in=user_in)
-    return await handler.execute(command)
+    return await handler(command)

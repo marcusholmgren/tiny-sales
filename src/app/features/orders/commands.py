@@ -1,14 +1,13 @@
 """Command objects and handlers for order management operations."""
 
 from dataclasses import dataclass
-from typing import List, Optional
 
-from app.common.commands import BaseCommand, CommandHandler
+from ...common import BaseCommand, CommandHandler
 from ..auth.models import User as AuthUser
 from . import schemas, service
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CreateOrderCommand(BaseCommand):
     """Command payload for creating a new order."""
 
@@ -21,9 +20,7 @@ class CreateOrderCommandHandler(
 ):
     """Command handler for placing a new order."""
 
-    async def execute(
-        self, command: CreateOrderCommand
-    ) -> schemas.OrderPublicSchema:
+    async def execute(self, command: CreateOrderCommand) -> schemas.OrderPublicSchema:
         """Executes order creation and transforms result to OrderPublicSchema.
 
         Args:
@@ -38,15 +35,15 @@ class CreateOrderCommandHandler(
         return await service._to_order_public_schema(new_order)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ListOrdersCommand(BaseCommand):
     """Command payload for listing user or all orders with pagination."""
 
     current_user: AuthUser
     limit: int = 10
-    cursor: Optional[str] = None
-    prev_cursor: Optional[str] = None
-    statuses: Optional[List[str]] = None
+    cursor: str | None = None
+    prev_cursor: str | None = None
+    statuses: list[str] | None = None
 
 
 class ListOrdersCommandHandler(
@@ -74,7 +71,7 @@ class ListOrdersCommandHandler(
         )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class GetOrderCommand(BaseCommand):
     """Command payload for retrieving a specific order."""
 
@@ -102,12 +99,12 @@ class GetOrderCommandHandler(
         return await service._to_order_public_schema(order)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ShipOrderCommand(BaseCommand):
     """Command payload for marking an order as shipped."""
 
     order_public_id: str
-    ship_data: Optional[schemas.OrderShipRequestSchema] = None
+    ship_data: schemas.OrderShipRequestSchema | None = None
 
 
 class ShipOrderCommandHandler(
@@ -130,12 +127,12 @@ class ShipOrderCommandHandler(
         return await service._to_order_public_schema(shipped_order)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CancelOrderCommand(BaseCommand):
     """Command payload for cancelling an existing order."""
 
     order_public_id: str
-    cancel_data: Optional[schemas.OrderCancelRequestSchema] = None
+    cancel_data: schemas.OrderCancelRequestSchema | None = None
 
 
 class CancelOrderCommandHandler(

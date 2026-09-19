@@ -2,20 +2,19 @@
 
 import datetime
 from dataclasses import dataclass
-from typing import Optional
 
-from app.common.commands import BaseCommand, CommandHandler
+from ...common import BaseCommand, CommandHandler
 from ..auth.models import User as AuthUser
 from . import schemas, service
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class GetTotalSalesReportCommand(BaseCommand):
     """Command payload for generating total sales report."""
 
     current_user: AuthUser
-    start_date: Optional[datetime.date] = None
-    end_date: Optional[datetime.date] = None
+    start_date: datetime.date | None = None
+    end_date: datetime.date | None = None
 
 
 class GetTotalSalesReportCommandHandler(
@@ -41,13 +40,13 @@ class GetTotalSalesReportCommandHandler(
         )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class GetSalesByProductReportCommand(BaseCommand):
     """Command payload for generating sales by product report."""
 
     current_user: AuthUser
-    start_date: Optional[datetime.date] = None
-    end_date: Optional[datetime.date] = None
+    start_date: datetime.date | None = None
+    end_date: datetime.date | None = None
 
 
 class GetSalesByProductReportCommandHandler(
@@ -73,13 +72,13 @@ class GetSalesByProductReportCommandHandler(
         )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class GetSalesByCategoryReportCommand(BaseCommand):
     """Command payload for generating sales by category report."""
 
     current_user: AuthUser
-    start_date: Optional[datetime.date] = None
-    end_date: Optional[datetime.date] = None
+    start_date: datetime.date | None = None
+    end_date: datetime.date | None = None
 
 
 class GetSalesByCategoryReportCommandHandler(
@@ -105,7 +104,7 @@ class GetSalesByCategoryReportCommandHandler(
         )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class GetOrderStatusBreakdownReportCommand(BaseCommand):
     """Command payload for generating order status breakdown report."""
 
@@ -135,7 +134,7 @@ class GetOrderStatusBreakdownReportCommandHandler(
         )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class GetLowStockItemsReportCommand(BaseCommand):
     """Command payload for generating low stock items report."""
 
@@ -163,7 +162,7 @@ class GetLowStockItemsReportCommandHandler(
         )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class GetMostStockedItemsReportCommand(BaseCommand):
     """Command payload for generating most stocked items report."""
 
@@ -189,7 +188,7 @@ class GetMostStockedItemsReportCommandHandler(
         return await service.generate_most_stocked_items_report(limit=command.limit)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class GetInventoryValueReportCommand(BaseCommand):
     """Command payload for generating inventory total value report."""
 

@@ -55,7 +55,7 @@ async def get_total_sales_report(
         start_date=period.start_date,
         end_date=period.end_date,
     )
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.get("/sales/by-product", response_model=SalesByProductResponse)
@@ -70,7 +70,7 @@ async def get_sales_by_product_report(
         start_date=period.start_date,
         end_date=period.end_date,
     )
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.get("/sales/by-category", response_model=SalesByCategoryResponse)
@@ -85,7 +85,7 @@ async def get_sales_by_category_report(
         start_date=period.start_date,
         end_date=period.end_date,
     )
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.get("/orders/status-breakdown", response_model=OrderStatusBreakdownResponse)
@@ -95,7 +95,7 @@ async def get_order_status_breakdown_report(
 ):
     """Retrieves order status breakdown report."""
     command = GetOrderStatusBreakdownReportCommand(current_user=current_user)
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.get("/inventory/low-stock", response_model=LowStockItemsResponse)
@@ -106,7 +106,7 @@ async def get_low_stock_items_report(
 ):
     """Retrieves low stock inventory report."""
     command = GetLowStockItemsReportCommand(threshold=threshold)
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.get("/inventory/most-stocked", response_model=MostStockedItemsResponse)
@@ -117,7 +117,7 @@ async def get_most_stocked_items_report(
 ):
     """Retrieves most stocked inventory report."""
     command = GetMostStockedItemsReportCommand(limit=limit)
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.get("/inventory/value", response_model=InventoryValueResponse)
@@ -127,4 +127,4 @@ async def get_inventory_value_report(
 ):
     """Retrieves total inventory valuation report."""
     command = GetInventoryValueReportCommand()
-    return await handler.execute(command)
+    return await handler(command)

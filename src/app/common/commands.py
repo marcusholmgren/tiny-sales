@@ -5,22 +5,22 @@ the Command Pattern across features.
 """
 
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
-
-CommandT = TypeVar("CommandT")
-ResultT = TypeVar("ResultT")
+from dataclasses import dataclass
 
 
+@dataclass(frozen=True, slots=True)
 class BaseCommand:
-    """Base marker class for command objects carrying execution input data."""
+    """Base marker class for immutable command objects carrying execution payload."""
 
     pass
 
 
-class CommandHandler(ABC, Generic[CommandT, ResultT]):
+class CommandHandler[CommandT: BaseCommand, ResultT](ABC):
     """Abstract base class for command handlers.
 
     Command handlers encapsulate business operation execution for a given command.
+    Handlers can be invoked directly as callables (`await handler(command)`)
+    or via `execute()` (`await handler.execute(command)`).
     """
 
     @abstractmethod
@@ -34,3 +34,7 @@ class CommandHandler(ABC, Generic[CommandT, ResultT]):
             ResultT: The result of processing the command.
         """
         ...
+
+    async def __call__(self, command: CommandT) -> ResultT:
+        """Invokes the command handler as a callable."""
+        return await self.execute(command)

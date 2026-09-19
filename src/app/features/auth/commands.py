@@ -2,10 +2,10 @@
 
 import logging
 from dataclasses import dataclass
-from fastapi import HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
 
-from app.common.commands import BaseCommand, CommandHandler
+from fastapi import HTTPException, status
+
+from ...common import BaseCommand, CommandHandler
 from . import schemas
 from . import security as auth_security
 from . import service as auth_service
@@ -13,11 +13,12 @@ from . import service as auth_service
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class LoginCommand(BaseCommand):
     """Command payload for user login authentication."""
 
-    form_data: OAuth2PasswordRequestForm
+    username: str
+    password: str
 
 
 class LoginCommandHandler(CommandHandler[LoginCommand, dict]):
@@ -27,7 +28,7 @@ class LoginCommandHandler(CommandHandler[LoginCommand, dict]):
         """Executes the login operation.
 
         Args:
-            command: The LoginCommand containing form credentials.
+            command: The LoginCommand containing credentials.
 
         Returns:
             dict: Token dictionary with access_token and token_type.
@@ -35,11 +36,9 @@ class LoginCommandHandler(CommandHandler[LoginCommand, dict]):
         Raises:
             HTTPException: If authentication fails or user is inactive.
         """
-        user = await auth_service.get_user_by_username(
-            username=command.form_data.username
-        )
+        user = await auth_service.get_user_by_username(username=command.username)
         if not user or not auth_security.verify_password(
-            command.form_data.password, user.hashed_password
+            command.password, user.hashed_password
         ):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -55,7 +54,7 @@ class LoginCommandHandler(CommandHandler[LoginCommand, dict]):
         return {"access_token": access_token, "token_type": "bearer"}
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class RegisterUserCommand(BaseCommand):
     """Command payload for user registration."""
 
@@ -104,7 +103,7 @@ class RegisterUserCommandHandler(
             )
             return schemas.UserResponse.model_validate(new_user_model)
         except Exception as e:
-            logger.error(f"Register user failed: {e}", exc_info=True)
+            logger.exception("Register user failed: %s", e)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Could not create user.",

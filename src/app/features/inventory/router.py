@@ -1,8 +1,10 @@
 """API routes for managing inventory items and categories, using command handlers."""
 
-from typing import Annotated, List, Optional
+from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 
+from ..auth.models import User as AuthUser
+from ..auth.security import get_current_active_admin_user
 from .commands import (
     CreateCategoryCommand,
     CreateCategoryCommandHandler,
@@ -35,10 +37,6 @@ from .schemas import (
     PaginatedInventoryResponse,
 )
 
-# For authentication - import User model for type hinting, and security function
-from ..auth.models import User as AuthUser
-from ..auth.security import get_current_active_admin_user
-
 router = APIRouter(
     prefix="/inventory",
     tags=["Inventory", "Categories"],
@@ -63,7 +61,7 @@ async def create_inventory_item(
     Requires admin privileges.
     """
     command = CreateInventoryItemCommand(item_in=item_in)
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.get(
@@ -75,11 +73,9 @@ async def create_inventory_item(
 async def list_inventory_items(
     handler: Annotated[ListInventoryItemsCommandHandler, Depends()],
     limit: int = Query(10, ge=1, le=100, description="Number of items per page"),
-    cursor: Optional[str] = Query(None, description="Forward cursor for pagination"),
-    prev_cursor: Optional[str] = Query(
-        None, description="Backward cursor for pagination"
-    ),
-    category_public_id: Optional[str] = Query(
+    cursor: str | None = Query(None, description="Forward cursor for pagination"),
+    prev_cursor: str | None = Query(None, description="Backward cursor for pagination"),
+    category_public_id: str | None = Query(
         None, description="Public ID of the category to filter by"
     ),
 ):
@@ -93,7 +89,7 @@ async def list_inventory_items(
         prev_cursor=prev_cursor,
         category_public_id=category_public_id,
     )
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.get(
@@ -108,7 +104,7 @@ async def get_inventory_item(
 ):
     """Retrieves a single inventory item by its public ID."""
     command = GetInventoryItemCommand(item_public_id=item_public_id)
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.put(
@@ -127,10 +123,8 @@ async def update_inventory_item(
 
     Requires admin privileges.
     """
-    command = UpdateInventoryItemCommand(
-        item_public_id=item_public_id, item_in=item_in
-    )
-    return await handler.execute(command)
+    command = UpdateInventoryItemCommand(item_public_id=item_public_id, item_in=item_in)
+    return await handler(command)
 
 
 @router.delete(
@@ -149,7 +143,7 @@ async def delete_inventory_item(
     Requires admin privileges.
     """
     command = DeleteInventoryItemCommand(item_public_id=item_public_id)
-    await handler.execute(command)
+    await handler(command)
     return None
 
 
@@ -171,12 +165,12 @@ async def create_category(
     Requires admin privileges.
     """
     command = CreateCategoryCommand(category_in=category_in)
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.get(
     "/categories/",
-    response_model=List[CategoryResponse],
+    response_model=list[CategoryResponse],
     summary="List all categories",
     tags=["Categories"],
 )
@@ -185,7 +179,7 @@ async def list_categories(
 ):
     """Retrieves a list of all categories."""
     command = ListCategoriesCommand()
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.get(
@@ -200,7 +194,7 @@ async def get_category(
 ):
     """Retrieves a single category by its public ID."""
     command = GetCategoryCommand(category_public_id=category_public_id)
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.put(
@@ -222,7 +216,7 @@ async def update_category(
     command = UpdateCategoryCommand(
         category_public_id=category_public_id, category_in=category_in
     )
-    return await handler.execute(command)
+    return await handler(command)
 
 
 @router.delete(
@@ -241,5 +235,5 @@ async def delete_category(
     Requires admin privileges.
     """
     command = DeleteCategoryCommand(category_public_id=category_public_id)
-    await handler.execute(command)
+    await handler(command)
     return None
